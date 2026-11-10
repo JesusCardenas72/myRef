@@ -11,14 +11,14 @@ from unittest.mock import patch
 from PyQt6 import QtCore, QtGui
 import pytest
 
-from beeref import fileio
-from beeref.fileio.export import (
+from myRef import fileio
+from myRef.fileio.export import (
     ImagesToDirectoryExporter,
     SceneToPixmapExporter,
     SceneToSVGExporter,
 )
-from beeref.items import BeePixmapItem, BeeTextItem
-from beeref.scene import BeeGraphicsScene
+from myRef.items import BeePixmapItem, BeeTextItem
+from myRef.scene import BeeGraphicsScene
 
 
 @pytest.fixture
@@ -101,8 +101,8 @@ def test_export_images_uses_scene_only_in_main_thread(
     assert len(os.listdir(tmpdir)) == 1
 
 
-@patch('beeref.widgets.SceneToPixmapExporterDialog.exec', return_value=1)
-@patch('beeref.widgets.SceneToPixmapExporterDialog.value',
+@patch('myRef.widgets.SceneToPixmapExporterDialog.exec', return_value=1)
+@patch('myRef.widgets.SceneToPixmapExporterDialog.value',
        return_value=QtCore.QSize(100, 100))
 @patch('PyQt6.QtWidgets.QFileDialog.getSaveFileName')
 def test_export_action_renders_in_main_thread(

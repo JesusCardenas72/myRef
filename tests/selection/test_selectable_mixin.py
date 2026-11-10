@@ -5,9 +5,9 @@ from unittest.mock import patch, MagicMock
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt
 
-from beeref.assets import BeeAssets
-from beeref import commands
-from beeref.items import BeePixmapItem
+from myRef.assets import BeeAssets
+from myRef import commands
+from myRef.items import BeePixmapItem
 
 
 def test_init_selectable(view):
@@ -17,7 +17,7 @@ def test_init_selectable(view):
 
 
 def test_on_view_scale_change(view, item):
-    with patch('beeref.items.BeePixmapItem.prepareGeometryChange') as m:
+    with patch('myRef.items.BeePixmapItem.prepareGeometryChange') as m:
         item.on_view_scale_change()
         m.assert_called_once()
 
@@ -103,7 +103,7 @@ def test_draw_debug_shape_path(view, item):
     painter.fillRect.assert_not_called()
 
 
-@patch('beeref.items.BeePixmapItem.draw_debug_shape')
+@patch('myRef.items.BeePixmapItem.draw_debug_shape')
 def test_paint_when_not_selected(debug_mock, view, item):
     view.scene.addItem(item)
     painter = MagicMock(
@@ -148,8 +148,8 @@ def test_paint_when_selected_multi_selection(view, item):
 
 
 def test_paint_when_debug_shapes(view):
-    with patch('beeref.selection.commandline_args') as args_mock:
-        with patch('beeref.items.BeePixmapItem.draw_debug_shape') as m:
+    with patch('myRef.selection.commandline_args') as args_mock:
+        with patch('myRef.items.BeePixmapItem.draw_debug_shape') as m:
             args_mock.debug_shapes = True
             args_mock.debug_boundingrects = False
             args_mock.debug_handles = False
@@ -163,8 +163,8 @@ def test_paint_when_debug_shapes(view):
 
 
 def test_paint_when_debug_boundingrects(view):
-    with patch('beeref.selection.commandline_args') as args_mock:
-        with patch('beeref.items.BeePixmapItem.draw_debug_shape') as m:
+    with patch('myRef.selection.commandline_args') as args_mock:
+        with patch('myRef.items.BeePixmapItem.draw_debug_shape') as m:
             args_mock.debug_shapes = False
             args_mock.debug_boundingrects = True
             args_mock.debug_handles = False
@@ -178,8 +178,8 @@ def test_paint_when_debug_boundingrects(view):
 
 
 def test_paint_when_debug_handles(view):
-    with patch('beeref.selection.commandline_args') as args_mock:
-        with patch('beeref.items.BeePixmapItem.draw_debug_shape') as m:
+    with patch('myRef.selection.commandline_args') as args_mock:
+        with patch('myRef.items.BeePixmapItem.draw_debug_shape') as m:
             args_mock.debug_shapes = False
             args_mock.debug_boundingrects = False
             args_mock.debug_handles = True

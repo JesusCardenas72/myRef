@@ -7,8 +7,8 @@ from pytest import approx
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
-from beeref import commands
-from beeref.items import BeePixmapItem, BeeTextItem
+from myRef import commands
+from myRef.items import BeePixmapItem, BeeTextItem
 
 
 def test_add_remove_item(view, item):
@@ -534,7 +534,7 @@ def test_flip_items(view, item):
     item.setSelected(True)
     view.scene.undo_stack = MagicMock(push=MagicMock())
     view.scene.cancel_crop_mode = MagicMock()
-    with patch('beeref.scene.BeeGraphicsScene.itemsBoundingRect',
+    with patch('myRef.scene.BeeGraphicsScene.itemsBoundingRect',
                return_value=QtCore.QRectF(10, 20, 100, 60)):
         view.scene.flip_items(vertical=True)
         args = view.scene.undo_stack.push.call_args_list[0][0]
@@ -1287,7 +1287,7 @@ def test_items_bounding_rect_when_no_items(view):
 
 
 def test_get_selection_center(view):
-    with patch('beeref.scene.BeeGraphicsScene.itemsBoundingRect',
+    with patch('myRef.scene.BeeGraphicsScene.itemsBoundingRect',
                return_value=QtCore.QRectF(10, 20, 100, 60)):
         center = view.scene.get_selection_center()
         assert center == QtCore.QPointF(60, 50)

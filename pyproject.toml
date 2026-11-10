@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["beeref*"]
+include = ["myRef*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.html", "*.png"]
 
 [project]
-name = "BeeRef"
-version = "0.3.4-dev"
+name = "myRef"
+version = "0.4.0"
 description = "A simple reference image viewer"
 readme = "README.rst"
 license = {file = "LICENSE"}
@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.gui-scripts]
-beeref = "beeref.__main__:main"
+myRef = "myRef.__main__:main"
 
 [project.urls]
 Homepage = "https://beeref.org/"

@@ -4,12 +4,12 @@ from PyQt6 import QtCore, QtGui, QtTest, QtWidgets
 from PyQt6.QtCore import Qt
 import pytest
 
-from beeref.actions.actions import actions
-from beeref.config import settings_events
-from beeref.config.controls import mouse_binding_matches_event
-from beeref.config.settings import cast_bool, is_valid_mouse_binding
-from beeref.items import BeePixmapItem, BeeTextItem
-from beeref.widgets.settings import (
+from myRef.actions.actions import actions
+from myRef.config import settings_events
+from myRef.config.controls import mouse_binding_matches_event
+from myRef.config.settings import cast_bool, is_valid_mouse_binding
+from myRef.items import BeePixmapItem, BeeTextItem
+from myRef.widgets.settings import (
     ExportNameTemplateWidget,
     LockIconCornerWidget,
     LockIconSizeWidget,
@@ -18,7 +18,7 @@ from beeref.widgets.settings import (
     TabletPanWidget,
     TabletZoomInvertedWidget,
 )
-from beeref.widgets.view_buttons import TitleBarButton
+from myRef.widgets.view_buttons import TitleBarButton
 
 
 RIGHT = Qt.MouseButton.RightButton
@@ -266,9 +266,9 @@ def test_tablet_mode_state_is_stored(view, settings):
 
 
 def test_tablet_mode_state_is_restored(settings, qtbot, qapp):
-    from beeref.__main__ import BeeRefMainWindow
+    from myRef.__main__ import myRefMainWindow
     settings.setValue('TabletMode/enabled', True)
-    main = BeeRefMainWindow(qapp)
+    main = myRefMainWindow(qapp)
     qtbot.addWidget(main)
     assert main.view.tablet_mode is True
 
@@ -459,9 +459,9 @@ def test_lock_state_is_stored(view, settings):
 
 
 def test_lock_state_is_restored(settings, qtbot, qapp):
-    from beeref.__main__ import BeeRefMainWindow
+    from myRef.__main__ import myRefMainWindow
     settings.setValue('View/lock_items', True)
-    main = BeeRefMainWindow(qapp)
+    main = myRefMainWindow(qapp)
     qtbot.addWidget(main)
     assert main.view.scene.items_locked is True
     assert main.view.lock_button.isChecked()
@@ -600,9 +600,9 @@ def test_titlebar_button_created_when_supported(view):
 
 def test_titlebar_button_created_at_startup(settings, qtbot, qapp):
     # The title bar action fires early on while the actions get created
-    from beeref.__main__ import BeeRefMainWindow
+    from myRef.__main__ import myRefMainWindow
     with patch.object(TitleBarButton, 'is_supported', return_value=True):
-        main = BeeRefMainWindow(qapp)
+        main = myRefMainWindow(qapp)
         qtbot.addWidget(main)
         assert main.view.titlebar_button is not None
     main.view.titlebar_button.dispose()

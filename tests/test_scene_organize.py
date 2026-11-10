@@ -10,8 +10,8 @@ import pytest
 
 from PyQt6 import QtCore, QtGui
 
-from beeref import commands
-from beeref.items import BeePixmapItem, BeeTextItem, sort_by_addition
+from myRef import commands
+from myRef.items import BeePixmapItem, BeeTextItem, sort_by_addition
 
 
 def make_item(view, x, y, width, height, selected=True, **kwargs):
@@ -228,7 +228,7 @@ def test_arrange_square_by_addition(view):
     item1.added_at = 2
     item2 = make_item(view, 0, 0, 100, 100)
     item2.added_at = 1
-    with patch('beeref.scene.commands.ArrangeItems',
+    with patch('myRef.scene.commands.ArrangeItems',
                wraps=commands.ArrangeItems) as arrange_mock:
         view.scene.arrange_square(order='addition')
         items = arrange_mock.call_args.args[1]
@@ -237,9 +237,9 @@ def test_arrange_square_by_addition(view):
 
 def test_arrange_square_random_shuffles(view):
     items = [make_item(view, 0, 0, 100, 100) for i in range(3)]
-    with patch('beeref.scene.random.sample',
+    with patch('myRef.scene.random.sample',
                return_value=list(reversed(items))) as sample_mock:
-        with patch('beeref.scene.commands.ArrangeItems',
+        with patch('myRef.scene.commands.ArrangeItems',
                    wraps=commands.ArrangeItems) as arrange_mock:
             view.scene.arrange_square(order='random')
     sample_mock.assert_called_once()
@@ -248,7 +248,7 @@ def test_arrange_square_random_shuffles(view):
 
 def test_insert_items_sets_added_at(view):
     item = BeeTextItem('foo')
-    with patch('beeref.commands.time.time', return_value=1234.5):
+    with patch('myRef.commands.time.time', return_value=1234.5):
         view.undo_stack.push(commands.InsertItems(view.scene, [item]))
     assert item.added_at == 1234.5
 
@@ -261,7 +261,7 @@ def test_insert_items_keeps_existing_added_at(view):
 
 
 def test_added_at_is_saved_and_loaded(view, tmpfile):
-    from beeref.fileio.sql import SQLiteIO
+    from myRef.fileio.sql import SQLiteIO
     item = BeeTextItem('foo')
     item.added_at = 1234.5
     view.scene.addItem(item)

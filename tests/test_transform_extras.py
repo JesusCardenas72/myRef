@@ -8,8 +8,8 @@ from pytest import approx
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt
 
-from beeref import commands
-from beeref.items import BeePixmapItem
+from myRef import commands
+from myRef.items import BeePixmapItem
 
 
 SHIFT = Qt.KeyboardModifier.ShiftModifier

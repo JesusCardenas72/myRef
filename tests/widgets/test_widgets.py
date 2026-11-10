@@ -3,8 +3,8 @@ from unittest.mock import patch, MagicMock
 from PyQt6 import QtCore, QtWidgets, QtGui
 from PyQt6.QtCore import Qt
 
-from beeref.config import logfile_name
-from beeref.widgets import (
+from myRef.config import logfile_name
+from myRef.widgets import (
     BeeNotification,
     ChangeOpacityDialog,
     DebugLogDialog,

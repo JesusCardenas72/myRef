@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 from PyQt6 import QtCore, QtGui
 
-from beeref import commands
-from beeref.items import BeePixmapItem, BeeTextItem
+from myRef import commands
+from myRef.items import BeePixmapItem, BeeTextItem
 
 
 def test_insert_items(view):

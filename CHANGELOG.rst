@@ -32,17 +32,41 @@ Added
 
 * New Items menu:
 
-  * Groups (Ctrl + G / Ctrl + Shift + G): Drawn as a coloured area
-    behind their items. Clicking an item in a group selects the
-    group; double click to select items inside it. Moving items onto
-    a group puts them into it (can be turned off in the settings).
-    Empty groups are removed.
   * Parenting (P / Shift + P): Children move, scale and rotate along
     with their parent.
   * Lock single items (Alt + L) and unlock all of them (Alt + Shift + L).
   * Comments on items (Alt + C), shown as tooltip.
   * Rename items (F2).
 
+* New Group menu:
+
+  * Groups (Ctrl + G / Ctrl + Shift + G): Drawn as a coloured area
+    behind their items. Clicking an item in a group selects the
+    group; double click to select items inside it. Moving items onto
+    a group puts them into it (can be turned off in the settings).
+    Empty groups are removed.
+  * Groups have a border and show their name as title in the top
+    right corner. Double click the title to rename the group.
+  * Group Style: background colour, border colour, width, line style
+    (solid, dashes, dots, dash-dot, dash-dot-dot) and shape (straight,
+    zigzag, wave, scallops, battlements, with adjustable wave height
+    and length), title colour and size, and opacity of the whole
+    group. Live preview; one undo step. Border and title are drawn
+    inside the group's area, so they are included when exporting.
+  * Add to Group and Remove from Group (taking items out of a
+    subgroup puts them into the outer group).
+  * Enter Group / Exit Group, Group Title, Group Colour, Group
+    Opacity, Focus Group.
+  * Arrange Contents / Normalize Contents: All arrange, align,
+    distribute, stack and normalize actions for the items inside the
+    selected group; subgroups count as one item.
+  * Subgroups: Group items inside an open group. Items dropped onto a
+    closed group with subgroups go into the closed group.
+  * Grouping items with different parents now tells which items have
+    been left out.
+
+* SVG export includes groups (background, border, title), and the
+  opacity of groups applies to their items.
 * New hierarchy panel (View -> Hierarchy, Ctrl + J): Shows all items
   as a tree. Drag to reorder and to change parents, double click to
   rename, click the lock and comment columns to lock or comment.

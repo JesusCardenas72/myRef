@@ -7,10 +7,10 @@ import pytest
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
-from beeref import window
-from beeref.items import BeePixmapItem
-from beeref.widgets.settings import SettingsDialog, WindowOpacityWidget
-from beeref.window import (
+from myRef import window
+from myRef.items import BeePixmapItem
+from myRef.widgets.settings import SettingsDialog, WindowOpacityWidget
+from myRef.window import (
     keysequence_to_native,
     NativeEventFilter,
     MOD_ALT,
@@ -28,7 +28,7 @@ def no_recreate(view):
 
 @pytest.fixture
 def no_native_click_through():
-    with patch('beeref.window.set_click_through') as click_mock:
+    with patch('myRef.window.set_click_through') as click_mock:
         yield click_mock
 
 
@@ -56,8 +56,8 @@ def test_keysequence_to_native(shortcut, expected):
     assert keysequence_to_native(shortcut) == expected
 
 
-@patch('beeref.window.NativeEventFilter.install')
-@patch('beeref.window.NativeEventFilter.is_supported', return_value=True)
+@patch('myRef.window.NativeEventFilter.install')
+@patch('myRef.window.NativeEventFilter.is_supported', return_value=True)
 def test_native_filter_registers_hotkeys(supported_mock, install_mock):
     callback = MagicMock()
     hotkeys = NativeEventFilter(callback)
@@ -71,8 +71,8 @@ def test_native_filter_registers_hotkeys(supported_mock, install_mock):
     install_mock.assert_called_once()
 
 
-@patch('beeref.window.NativeEventFilter.install')
-@patch('beeref.window.NativeEventFilter.is_supported', return_value=True)
+@patch('myRef.window.NativeEventFilter.install')
+@patch('myRef.window.NativeEventFilter.is_supported', return_value=True)
 def test_native_filter_handle_hotkey(supported_mock, install_mock, qtbot):
     callback = MagicMock()
     hotkeys = NativeEventFilter(callback)
@@ -84,8 +84,8 @@ def test_native_filter_handle_hotkey(supported_mock, install_mock, qtbot):
     callback.assert_called_once_with('foo')
 
 
-@patch('beeref.window.NativeEventFilter.install')
-@patch('beeref.window.NativeEventFilter.is_supported', return_value=True)
+@patch('myRef.window.NativeEventFilter.install')
+@patch('myRef.window.NativeEventFilter.is_supported', return_value=True)
 def test_native_filter_unregister_all(supported_mock, install_mock):
     hotkeys = NativeEventFilter(MagicMock())
     with patch.object(hotkeys, '_register_native', return_value=True):
@@ -96,7 +96,7 @@ def test_native_filter_unregister_all(supported_mock, install_mock):
     assert hotkeys.registered == {}
 
 
-@patch('beeref.window.NativeEventFilter.is_supported', return_value=False)
+@patch('myRef.window.NativeEventFilter.is_supported', return_value=False)
 def test_native_filter_does_nothing_when_unsupported(supported_mock):
     hotkeys = NativeEventFilter(MagicMock())
     with patch.object(hotkeys, '_register_native') as reg_mock:
@@ -130,7 +130,7 @@ def test_global_hotkeys_registered_when_setting_changes(view, settings):
 
 def test_global_hotkeys_registered_when_shortcuts_change(
         view, settings, kbsettings):
-    from beeref.actions.actions import actions
+    from myRef.actions.actions import actions
     settings.setValue('Window/global_hotkeys', True)
     action = actions['opacity_reset']
     # Don't write to the real keyboard settings file
@@ -142,7 +142,7 @@ def test_global_hotkeys_registered_when_shortcuts_change(
             'Ctrl+Alt+Home']
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_global_hotkeys_notifies_failure(notify_mock, view):
     with patch.object(view.native_filter, 'register',
                       return_value=['Ctrl+Alt+T']):
@@ -194,14 +194,14 @@ def test_opacity_setting_applies_to_window(view, settings):
     assert view.parent.windowOpacity() == pytest.approx(0.5, abs=0.01)
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_opacity_notifies(notify_mock, view):
     view.notify_window_modes = True
     view.on_action_opacity_decrease()
     notify_mock.assert_called_once_with(view, 'Opacity: 90 %')
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_notification_can_be_turned_off(notify_mock, view, settings):
     settings.setValue('Window/notify_mode_change', False)
     view.notify_window_modes = True
@@ -209,7 +209,7 @@ def test_notification_can_be_turned_off(notify_mock, view, settings):
     notify_mock.assert_not_called()
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_no_notifications_before_startup(notify_mock, view):
     view.notify_window_modes = False
     view.on_action_opacity_decrease()
@@ -253,22 +253,22 @@ def test_recreate_window_sets_flags(show_mock, destroy_mock, create_mock,
     show_mock.assert_called_once()
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_always_on_top_of_app_only_on_windows(notify_mock, view):
-    with patch('beeref.window.IS_WINDOWS', False):
+    with patch('myRef.window.IS_WINDOWS', False):
         view.on_action_always_on_top_of_app()
     notify_mock.assert_called_once_with(
         view, 'This is only available on Windows')
 
 
-@patch('beeref.window.AppOnTopTracker')
-@patch('beeref.window.list_app_windows',
+@patch('myRef.window.AppOnTopTracker')
+@patch('myRef.window.list_app_windows',
        return_value=[('Foo', 123), ('Bar', 456)])
 @patch('PyQt6.QtWidgets.QInputDialog.getItem', return_value=('Foo', True))
 def test_always_on_top_of_app(dialog_mock, list_mock, tracker_mock, view,
                               no_recreate):
     view.get_qaction('always_on_top').setChecked(True)
-    with patch('beeref.window.IS_WINDOWS', True):
+    with patch('myRef.window.IS_WINDOWS', True):
         view.on_action_always_on_top_of_app()
     assert dialog_mock.call_args[0][3] == ['(None)', 'Bar', 'Foo']
     assert tracker_mock.call_args[0][1] == 123
@@ -277,16 +277,16 @@ def test_always_on_top_of_app(dialog_mock, list_mock, tracker_mock, view,
 
     # Choosing "(None)" stops it again
     dialog_mock.return_value = ('(None)', True)
-    with patch('beeref.window.IS_WINDOWS', True):
+    with patch('myRef.window.IS_WINDOWS', True):
         view.on_action_always_on_top_of_app()
     tracker_mock.return_value.stop.assert_called_once()
     assert view.app_on_top is None
 
 
-@patch('beeref.window.list_app_windows', return_value=[])
+@patch('myRef.window.list_app_windows', return_value=[])
 @patch('PyQt6.QtWidgets.QInputDialog.getItem', return_value=('', False))
 def test_always_on_top_of_app_canceled(dialog_mock, list_mock, view):
-    with patch('beeref.window.IS_WINDOWS', True):
+    with patch('myRef.window.IS_WINDOWS', True):
         view.on_action_always_on_top_of_app()
     assert view.app_on_top is None
 
@@ -400,7 +400,7 @@ def test_lock_window_blocks_native_move(view):
     assert view.native_filter.locked_hwnd is None
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_lock_window_blocks_move_window_mode(notify_mock, view):
     make_image(view)
     view.on_action_lock_window(True)
@@ -409,14 +409,14 @@ def test_lock_window_blocks_move_window_mode(notify_mock, view):
     notify_mock.assert_called_with(view, 'The window is locked')
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_lock_window_blocks_move_window_mode_overlay(notify_mock, view):
     view.on_action_lock_window(True)
     view.welcome_overlay.enter_movewin_mode()
     assert view.welcome_overlay.movewin_active is False
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_lock_window_blocks_fullscreen(notify_mock, view):
     view.on_action_lock_window(True)
     view.get_qaction('fullscreen').setChecked(True)
@@ -456,7 +456,7 @@ def test_maximize_window_lock_when_maximized(view, settings):
     assert view.parent.minimumSize() == QtCore.QSize(0, 0)
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_maximize_window_when_locked(notify_mock, view):
     geom = view.parent.geometry()
     view.on_action_lock_window(True)
@@ -489,7 +489,7 @@ def test_fit_window_to_selection_uses_all_items_without_selection(
     qtbot.waitUntil(lambda: view.scale_on_resize_paused is False)
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_fit_window_to_selection_when_locked(notify_mock, view):
     make_image(view)
     geom = view.parent.geometry()
@@ -670,7 +670,7 @@ def test_settings_dialog_window_tab(view):
     dialog.close()
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_new_notice_replaces_previous(notify_mock, view):
     first, second = MagicMock(), MagicMock()
     notify_mock.side_effect = [first, second]

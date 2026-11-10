@@ -5,7 +5,7 @@ Appimage : Explanations for including/excluding libraries
 GTK/Gnome
 ---------
 
-By default, in a Gnome session BeeRef pulls a couple of gtk/gdg libs. When opening a native Gnome/GTK file dialog, more gtk/gdl libs are loaded from the system, which might be incompatable.
+By default, in a Gnome session myRef pulls a couple of gtk/gdg libs. When opening a native Gnome/GTK file dialog, more gtk/gdl libs are loaded from the system, which might be incompatable.
 
 https://github.com/rbreu/beeref/discussions/103
 

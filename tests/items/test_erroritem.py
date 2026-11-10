@@ -2,14 +2,14 @@ from unittest.mock import patch, MagicMock
 
 from PyQt6 import QtCore, QtWidgets
 
-from beeref.items import BeeErrorItem, item_registry
+from myRef.items import BeeErrorItem, item_registry
 
 
 def test_in_items_registry():
     assert item_registry['error'] == BeeErrorItem
 
 
-@patch('beeref.selection.SelectableMixin.init_selectable')
+@patch('myRef.selection.SelectableMixin.init_selectable')
 def test_init(selectable_mock, qapp):
     item = BeeErrorItem('foo bar')
     assert hasattr(item, 'save_id') is False
@@ -98,7 +98,7 @@ def test_flip(qapp):
     assert item.flip() == 1
 
 
-@patch('beeref.items.BeeErrorItem.boundingRect')
+@patch('myRef.items.BeeErrorItem.boundingRect')
 def test_contains_when_inside_bounds(brect_mock, qapp):
     brect_mock.return_value = QtCore.QRectF(20, 30, 50, 50)
     item = BeeErrorItem('foo bar')
@@ -106,7 +106,7 @@ def test_contains_when_inside_bounds(brect_mock, qapp):
     brect_mock.assert_called_once_with()
 
 
-@patch('beeref.items.BeeErrorItem.boundingRect')
+@patch('myRef.items.BeeErrorItem.boundingRect')
 def test_contains_when_outside_bounds(brect_mock, qapp):
     brect_mock.return_value = QtCore.QRectF(20, 30, 50, 50)
     item = BeeErrorItem('foo bar')

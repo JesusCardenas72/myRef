@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Create JSON with Linux libs needed for BeeRef appimage
+# Create JSON with Linux libs needed for myRef appimage
 
 import argparse
 import json
@@ -14,12 +14,12 @@ from urllib import request
 
 
 parser = argparse.ArgumentParser(
-    description=('Create JSON with Linux libs needed for BeeRef appimage'))
+    description=('Create JSON with Linux libs needed for myRef appimage'))
 parser.add_argument(
     'pid',
     nargs=1,
     default=None,
-    help='PID of running BeeRef process')
+    help='PID of running myRef process')
 parser.add_argument(
     '-l', '--loglevel',
     default='INFO',
@@ -85,7 +85,7 @@ if args.check_appimage:
     logger.info('Checking appimage...')
     errors = False
     for lib in iter_lsofoutput(output):
-        if 'mount_BeeRef' not in lib:
+        if 'mount_myRef' not in lib:
             print(f'Not in appimage: {lib}')
             errors = True
     if not errors:

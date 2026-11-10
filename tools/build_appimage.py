@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Build the BeeRef appimage. Run from the git root directory.
+# Build the myRef appimage. Run from the git root directory.
 # On github actions:
 #   ./tools/build_appimage --version=${{ github.ref_name }}\
 #      --jsonfile=tools/linux_libs.json
@@ -20,12 +20,12 @@ from urllib.request import urlretrieve
 
 
 parser = argparse.ArgumentParser(
-    description=('Create an appimage for BeeRef. '
+    description=('Create an appimage for myRef. '
                  'Run from the git root directory.'))
 parser.add_argument(
     '-v', '--version',
     required=True,
-    help='BeeRef version number/tag for output file')
+    help='myRef version number/tag for output file')
 parser.add_argument(
     '-j', '--jsonfile',
     required=True,
@@ -157,8 +157,8 @@ export APPIMAGE_COMMAND=$(command -v -- "$ARGV0")
 export SSL_CERT_FILE="${APPDIR}/opt/_internal/certs.pem"
 """]
 
-runbee = f'"$APPDIR/opt/python{PYVER}/bin/python{PYVER}" -I -m beeref "$@"'
-logfile = '/tmp/BeeRefAppimageLog.txt'
+runbee = f'"$APPDIR/opt/python{PYVER}/bin/python{PYVER}" -I -m myRef "$@"'
+logfile = '/tmp/myRefAppimageLog.txt'
 
 content.extend([
     f'export LD_LIBRARY_PATH="{ld_paths}"',
@@ -182,7 +182,7 @@ logger.info('Copying appdata.xml...')
 for f in glob.glob('squashfs-root/usr/share/metainfo/*'):
     os.remove(f)
 
-filename = 'org.beeref.BeeRef.appdata.xml'
+filename = 'org.beeref.myRef.appdata.xml'
 shutil.copyfile(filename, f'squashfs-root/usr/share/metainfo/{filename}')
 
 logger.info('Writing .desktop...')
@@ -192,11 +192,11 @@ for f in glob.glob('squashfs-root/*.desktop'):
     os.remove(f)
 
 content = f"""[Desktop Entry]
-Name=BeeRef
+Name=myRef
 GenericName=Image Viewer
 Comment=A simple reference image viewer
 Terminal=false
-Exec=BeeRef-{BEEVERSION}
+Exec=myRef-{BEEVERSION}
 Type=Application
 Icon=logo
 
@@ -208,15 +208,15 @@ X-KDE-ExtraNativeMimeTypes=
 X-AppImage-Version={BEEVERSION}
 """
 
-filename = 'squashfs-root/usr/share/applications/org.beeref.BeeRef.desktop'
+filename = 'squashfs-root/usr/share/applications/org.beeref.myRef.desktop'
 with open(filename, 'w') as f:
     f.write(content)
-os.symlink('usr/share/applications/org.beeref.BeeRef.desktop',
-           'squashfs-root/BeeRef.desktop')
+os.symlink('usr/share/applications/org.beeref.myRef.desktop',
+           'squashfs-root/myRef.desktop')
 
 logger.info('Copying logos...')
-shutil.copyfile('./beeref/assets/logo.svg', 'squashfs-root/logo.svg')
-shutil.copyfile('./beeref/assets/logo.png', 'squashfs-root/.DirIcon')
+shutil.copyfile('./myRef/assets/logo.svg', 'squashfs-root/logo.svg')
+shutil.copyfile('./myRef/assets/logo.png', 'squashfs-root/.DirIcon')
 
 
 url = ('https://github.com/AppImage/AppImageKit/releases/download/'
@@ -225,4 +225,4 @@ url = ('https://github.com/AppImage/AppImageKit/releases/download/'
 download_file(url, filename='appimagetool.appimage')
 run_command('./appimagetool.appimage',
             'squashfs-root',
-            f'BeeRef-{BEEVERSION}.appimage')
+            f'myRef-{BEEVERSION}.appimage')

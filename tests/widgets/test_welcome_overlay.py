@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 from PyQt6 import QtCore, QtWidgets
 
-from beeref.view import BeeGraphicsView
-from beeref.widgets.welcome_overlay import (
+from myRef.view import BeeGraphicsView
+from myRef.widgets.welcome_overlay import (
     RecentFilesModel,
     RecentFilesView,
     WelcomeOverlay,
@@ -42,7 +42,7 @@ def test_recent_files_model_data_fontrole(view):
     assert font.underline() is True
 
 
-@patch('beeref.widgets.welcome_overlay.BeeSettings.get_recent_files',
+@patch('myRef.widgets.welcome_overlay.BeeSettings.get_recent_files',
        return_value=[])
 def test_welcome_overlay_when_no_recent_files(qapp):
     parent = QtWidgets.QMainWindow()
@@ -74,7 +74,7 @@ def test_recent_files_view_on_click(qapp):
     view.open_from_file.assert_called_once_with('bar.bee')
 
 
-@patch('beeref.widgets.welcome_overlay.BeeSettings.get_recent_files',
+@patch('myRef.widgets.welcome_overlay.BeeSettings.get_recent_files',
        return_value=['foo.bee', 'bar.bee'])
 def test_welcome_overlay_when_recent_files(qapp):
     parent = QtWidgets.QMainWindow()

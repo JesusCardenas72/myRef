@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 from PyQt6 import QtGui
 
-from beeref import commands
-from beeref.items import BeePixmapItem, BeeTextItem
+from myRef import commands
+from myRef.items import BeePixmapItem, BeeTextItem
 
 
 def make_image(view, selected=True):
@@ -117,7 +117,7 @@ def test_paint_not_smooth_when_nearest_neighbor(view):
 
 
 def test_selection_change_updates_nearest_neighbor_check(view):
-    from beeref.actions.actions import actions
+    from myRef.actions.actions import actions
     item = make_image(view, selected=False)
     item.nearest_neighbor = True
     item.setSelected(True)

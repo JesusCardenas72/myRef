@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 
 from PyQt6 import QtGui
 
-from beeref.items import BeePixmapItem
-from beeref.widgets.color_gamut import (
+from myRef.items import BeePixmapItem
+from myRef.widgets.color_gamut import (
     GamutDialog,
     GamutPainterThread,
     GamutWidget,

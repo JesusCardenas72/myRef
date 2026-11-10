@@ -5,14 +5,14 @@ import pytest
 
 from PyQt6 import QtGui, QtCore
 
-from beeref import constants
-from beeref.items import BeePixmapItem
-from beeref.fileio.errors import BeeFileIOError
-from beeref.fileio.export import SceneToPixmapExporter
+from myRef import constants
+from myRef.items import BeePixmapItem
+from myRef.fileio.errors import BeeFileIOError
+from myRef.fileio.export import SceneToPixmapExporter
 
 
-@patch('beeref.widgets.SceneToPixmapExporterDialog.exec', return_value=True)
-@patch('beeref.widgets.SceneToPixmapExporterDialog.value',
+@patch('myRef.widgets.SceneToPixmapExporterDialog.exec', return_value=True)
+@patch('myRef.widgets.SceneToPixmapExporterDialog.value',
        return_value=QtCore.QSize(100, 200))
 def test_scene_to_pixmap_exporter_get_user_input(value_mock, exec_mock, view):
     exporter = SceneToPixmapExporter(view.scene)
@@ -21,8 +21,8 @@ def test_scene_to_pixmap_exporter_get_user_input(value_mock, exec_mock, view):
     assert exporter.size == QtCore.QSize(100, 200)
 
 
-@patch('beeref.widgets.SceneToPixmapExporterDialog.exec', return_value=False)
-@patch('beeref.widgets.SceneToPixmapExporterDialog.value')
+@patch('myRef.widgets.SceneToPixmapExporterDialog.exec', return_value=False)
+@patch('myRef.widgets.SceneToPixmapExporterDialog.value')
 def test_scene_to_pixmap_exporter_get_user_input_when_canceled(
         value_mock, exec_mock, view):
     exporter = SceneToPixmapExporter(view.scene)
@@ -65,7 +65,7 @@ def test_scene_to_pixmap_exporter_default_size_and_margin_when_selection(view):
     assert exporter.default_size == QtCore.QSize(318, 118)
 
 
-@patch('beeref.scene.BeeGraphicsScene.render')
+@patch('myRef.scene.BeeGraphicsScene.render')
 def test_scene_to_pixmap_exporter_render_sets_margins(render_mock, view):
     item = BeePixmapItem(
         QtGui.QImage(1000, 1200, QtGui.QImage.Format.Format_RGB32))
