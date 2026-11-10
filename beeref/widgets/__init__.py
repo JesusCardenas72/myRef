@@ -29,6 +29,7 @@ from beeref.widgets import (  # noqa: F401
     color_gamut,
     view_buttons,
     hierarchy,
+    textformat,
 )
 
 

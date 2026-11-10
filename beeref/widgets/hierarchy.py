@@ -23,6 +23,7 @@ from PyQt6.QtCore import Qt
 from beeref import commands
 from beeref import hierarchy
 from beeref.i18n import _
+from beeref.widgets.textformat import EditorTarget, TextFormatToolbar
 
 
 logger = logging.getLogger(__name__)
@@ -272,6 +273,10 @@ class CommentDialog(QtWidgets.QDialog):
         self.editor = QtWidgets.QTextEdit()
         self.editor.setAcceptRichText(True)
         self.editor.setHtml(comment or '')
+        self.toolbar = TextFormatToolbar(
+            EditorTarget(self.editor), self, for_notes=False)
+        self.editor.cursorPositionChanged.connect(self.toolbar.update_state)
+        layout.addWidget(self.toolbar)
         layout.addWidget(self.editor)
         buttons = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.StandardButton.Ok
@@ -279,7 +284,7 @@ class CommentDialog(QtWidgets.QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-        self.resize(400, 250)
+        self.resize(max(400, self.toolbar.sizeHint().width() + 20), 250)
         self.editor.setFocus()
 
     def comment(self):

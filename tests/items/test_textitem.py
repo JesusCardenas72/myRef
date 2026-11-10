@@ -61,7 +61,11 @@ def test_set_pos_center_when_rotated(qapp):
 
 def test_get_extra_save_data(qapp):
     item = BeeTextItem('foo bar')
-    assert item.get_extra_save_data() == {'text': 'foo bar'}
+    data = item.get_extra_save_data()
+    assert data['text'] == 'foo bar'
+    assert 'foo bar' in data['html']
+    assert 'text_width' not in data
+    assert 'background' not in data
 
 
 @patch('beeref.items.BeeTextItem.boundingRect')
@@ -295,9 +299,11 @@ def test_key_press_event_shift_return(exit_mock, key_press_mock, view):
     event.key.return_value = Qt.Key.Key_Return
     event.modifiers.return_value = Qt.KeyboardModifier.ShiftModifier
     item.keyPressEvent(event)
-    key_press_mock.assert_called_once_with(event)
+    # Inserts a new paragraph instead of a line break:
+    key_press_mock.assert_not_called()
     exit_mock.assert_not_called()
     assert view.scene.edit_item == item
+    assert item.document().blockCount() == 2
 
 
 @patch('PyQt6.QtWidgets.QGraphicsTextItem.keyPressEvent')
@@ -310,9 +316,11 @@ def test_key_press_event_shift_enter(exit_mock, key_press_mock, view):
     event.key.return_value = Qt.Key.Key_Enter
     event.modifiers.return_value = Qt.KeyboardModifier.ShiftModifier
     item.keyPressEvent(event)
-    key_press_mock.assert_called_once_with(event)
+    # Inserts a new paragraph instead of a line break:
+    key_press_mock.assert_not_called()
     exit_mock.assert_not_called()
     assert view.scene.edit_item == item
+    assert item.document().blockCount() == 2
 
 
 @patch('PyQt6.QtWidgets.QGraphicsTextItem.keyPressEvent')
@@ -362,6 +370,7 @@ def test_item_to_clipboard(qapp):
     item = BeeTextItem('foo bar')
     item.copy_to_clipboard(clipboard)
     assert clipboard.text() == 'foo bar'
+    assert 'foo bar' in clipboard.mimeData().html()
 
 
 def test_edit_mode_switches_shortcut_context(view):

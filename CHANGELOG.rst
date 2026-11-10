@@ -4,6 +4,24 @@
 Added
 -----
 
+* Rich text notes, with a new Text menu and a formatting toolbar that
+  floats above the note while editing it:
+
+  * Bold, italic, underline, strikethrough, text and highlight colour,
+    font and size, alignment, note background colour.
+  * Bullet lists, numbered lists and checklists (click the check box
+    to tick it); Tab / Shift + Tab change the indentation.
+  * Links (Ctrl + K), opened with Ctrl + Click. Links to bee files open
+    them in BeeRef.
+  * Fixed width with word wrap: drag the right edge of a note while
+    editing it.
+  * Copy and paste formats (Ctrl + Alt + C / Ctrl + Alt + V), clear
+    formatting, paste as plain text (Ctrl + Shift + V).
+  * Formatting selected notes without editing them changes all of
+    them at once.
+  * A note inserted while an image is selected gets attached to it.
+  * Comments use the same formatting toolbar.
+
 * New Items menu:
 
   * Groups (Ctrl + G / Ctrl + Shift + G): Drawn as a coloured area
@@ -142,6 +160,10 @@ Fixed
 Changed
 -------
 
+* Text is saved with its formatting (as HTML). The plain text is still
+  saved as well, so older versions can show it.
+* Shift + Enter while editing text starts a new paragraph (or list
+  item) instead of a line break.
 * File -> Export Images now exports images in a deterministic order
   (by filename).
 * Arrange Horiszontal/Vertical now also sort by filename instead of

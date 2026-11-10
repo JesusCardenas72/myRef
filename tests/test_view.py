@@ -708,7 +708,10 @@ def test_on_action_copy_text(clipboard_mock, view, imgfilename3x3):
     clipboard_mock.return_value.mimeData.return_value = mimedata
     view.on_action_copy()
 
-    clipboard_mock.return_value.setText.assert_called_once_with('foo bar')
+    clipboard_mock.return_value.setMimeData.assert_called_once()
+    data = clipboard_mock.return_value.setMimeData.call_args[0][0]
+    assert data.text() == 'foo bar'
+    assert 'foo bar' in data.html()
     view.scene.internal_clipboard == [item]
     assert mimedata.data('beeref/items') == b'1'
     view.cancel_active_modes.assert_called_once_with()
