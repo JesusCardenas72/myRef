@@ -779,7 +779,7 @@ def test_titlebar_button_tooltip_is_translated(titlebar_button, settings):
 
 def test_settings_dialog_has_tablet_and_lock_tabs(view):
     dialog = SettingsDialog(view)
-    assert dialog.tabs.count() == 5
+    assert dialog.tabs.count() == 6
     assert dialog.tabs.tabText(2) == '&Tablet Mode'
     assert dialog.tabs.tabText(3) == '&Lock Icon'
     assert dialog.tabs.tabText(4) == 'E&xport'

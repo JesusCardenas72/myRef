@@ -63,10 +63,12 @@ class BeeRefMainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.view)
         self.show()
         self.view.update_titlebar_button()
+        self.view.apply_startup_window_mode()
 
     def closeEvent(self, event):
         geom = self.saveGeometry()
         self.view.settings.setValue('MainWindow/geometry', geom)
+        self.view.close_window_modes()
         event.accept()
 
     def __del__(self):

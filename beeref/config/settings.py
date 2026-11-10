@@ -103,6 +103,7 @@ class BeeSettingsEvents(QtCore.QObject):
     restore_keyboard_defaults = QtCore.pyqtSignal()
     language_changed = QtCore.pyqtSignal()
     view_settings_changed = QtCore.pyqtSignal()
+    shortcuts_changed = QtCore.pyqtSignal()
 
 
 # We want to send and receive settings events globally, not per
@@ -226,6 +227,49 @@ class BeeSettings(QtCore.QSettings):
             'default': True,
             'cast': cast_bool,
             'post_save_callback': notify_view_settings_changed,
+        },
+        'Window/opacity': {
+            'default': 100,
+            'cast': int,
+            'validate': lambda x: 10 <= x <= 100,
+            'post_save_callback': notify_view_settings_changed,
+        },
+        'Window/startup_mode': {
+            'default': 'normal',
+            'validate': lambda x: x in (
+                'normal', 'last', 'always_on_top', 'click_through'),
+        },
+        'Window/notify_mode_change': {
+            'default': True,
+            'cast': cast_bool,
+        },
+        'Window/tray_icon': {
+            'default': False,
+            'cast': cast_bool,
+            'post_save_callback': notify_view_settings_changed,
+        },
+        'Window/global_hotkeys': {
+            'default': False,
+            'cast': cast_bool,
+            'post_save_callback': notify_view_settings_changed,
+        },
+        'Window/scale_on_resize': {
+            'default': False,
+            'cast': cast_bool,
+        },
+        'Window/maximize_over_taskbar': {
+            'default': False,
+            'cast': cast_bool,
+        },
+        'Window/lock_when_maximized': {
+            'default': False,
+            'cast': cast_bool,
+            'post_save_callback': notify_view_settings_changed,
+        },
+        'Window/resize_border': {
+            'default': 8,
+            'cast': int,
+            'validate': lambda x: 2 <= x <= 40,
         },
         'LockIcon/corner': {
             'default': 'bottom_left',

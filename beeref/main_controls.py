@@ -57,6 +57,10 @@ class MainControlsMixin:
         return self
 
     def enter_movewin_mode(self):
+        if getattr(self.control_target, 'window_locked', False) is True:
+            logger.debug('Window is locked, not entering movewin mode')
+            self.control_target.notify_window_locked()
+            return
         logger.debug('Entering movewin mode')
         self.setMouseTracking(True)
         self.movewin_active = True

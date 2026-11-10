@@ -79,6 +79,23 @@ menu_structure = [
             'grayscale_canvas',
             MENU_SEPARATOR,
             'move_window',
+            {
+                'menu': 'Wi&ndow',
+                'items': [
+                    'always_on_bottom',
+                    'always_on_top_of_app',
+                    'click_through',
+                    'lock_window',
+                    MENU_SEPARATOR,
+                    'opacity_increase',
+                    'opacity_decrease',
+                    'opacity_reset',
+                    MENU_SEPARATOR,
+                    'fit_window_to_selection',
+                    'maximize_window',
+                    'titlebar_on_hover',
+                ],
+            },
         ],
     },
     {
