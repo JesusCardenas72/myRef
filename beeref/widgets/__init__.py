@@ -30,6 +30,7 @@ from beeref.widgets import (  # noqa: F401
     view_buttons,
     hierarchy,
     textformat,
+    drawing,
 )
 
 

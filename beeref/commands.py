@@ -418,6 +418,27 @@ class ChangeText(QtGui.QUndoCommand):
         self._apply(self.old_text, self.old_width)
 
 
+class ChangeDrawing(QtGui.QUndoCommand):
+    """Change the shapes of a drawing item."""
+
+    def __init__(self, item, new_shapes, old_shapes,
+                 text='Change drawing', ignore_first_redo=False):
+        super().__init__(text)
+        self.item = item
+        self.new_shapes = new_shapes
+        self.old_shapes = old_shapes
+        self.ignore_first_redo = ignore_first_redo
+
+    def redo(self):
+        if self.ignore_first_redo:
+            self.ignore_first_redo = False
+            return
+        self.item.set_shapes(list(self.new_shapes))
+
+    def undo(self):
+        self.item.set_shapes(list(self.old_shapes))
+
+
 class ChangeNoteBackground(QtGui.QUndoCommand):
     """Change the background color of text notes."""
 

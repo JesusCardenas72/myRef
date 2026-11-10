@@ -4,6 +4,14 @@
 Added
 -----
 
+* Drawing (Insert -> Draw, Ctrl + Shift + D): Pen, line, arrow,
+  rectangle, ellipse and eraser tools (D, L, A, R, C, E) with colour,
+  line width and solid, dashed or dotted lines. Hold Shift for 45
+  degree lines, squares and circles. Pen strokes get smoothed. The
+  eraser removes whole strokes. Drawings are items like images and
+  text: they can be moved, scaled, grouped and parented. Double click
+  a drawing to continue drawing on it. SVG export writes drawings as
+  vector paths.
 * Rich text notes, with a new Text menu and a formatting toolbar that
   floats above the note while editing it:
 

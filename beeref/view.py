@@ -24,7 +24,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
 from beeref.actions import ActionsMixin, actions
-from beeref.actions.actions import CONTEXT_GLOBAL
+from beeref.actions.actions import CONTEXT_DRAW, CONTEXT_GLOBAL
 from beeref.canvas import CanvasMixin
 from beeref import commands
 from beeref.config import (
@@ -43,7 +43,8 @@ from beeref import hierarchy
 from beeref import textformat
 from beeref import widgets
 from beeref.items import (
-    BeePixmapItem, BeeTextItem, BeeGroupItem, items_in_order)
+    BeePixmapItem, BeeTextItem, BeeGroupItem, BeeDrawingItem,
+    items_in_order)
 from beeref.main_controls import MainControlsMixin
 from beeref.scene import BeeGraphicsScene
 from beeref.utils import get_file_extension_from_format, qcolor_to_hex
@@ -93,6 +94,8 @@ class BeeGraphicsView(MainControlsMixin,
         self.right_gesture_moved = False
         self.hierarchy_dock = None
         self.text_toolbar = None
+        self.draw_session = None
+        self.draw_toolbar = None
 
         self.scene = BeeGraphicsScene(self.undo_stack)
         self.scene.changed.connect(self.on_scene_changed)
@@ -173,6 +176,8 @@ class BeeGraphicsView(MainControlsMixin,
             self.hierarchy_dock.retranslate()
         if self.text_toolbar:
             self.text_toolbar.retranslate()
+        if self.draw_toolbar:
+            self.draw_toolbar.retranslate()
         self.welcome_overlay.retranslate()
         self.update_window_title()
 
@@ -267,6 +272,7 @@ class BeeGraphicsView(MainControlsMixin,
 
     def clear_scene(self):
         logging.debug('Clearing scene...')
+        self.exit_draw_mode(finish=False)
         self.cancel_active_modes()
         self.scene.clear()
         self.undo_stack.clear()
@@ -391,6 +397,8 @@ class BeeGraphicsView(MainControlsMixin,
             self.titlebar_button.setChecked(checked)
 
     def on_action_lock_items(self, checked):
+        if checked:
+            self.exit_draw_mode()
         self.scene.set_items_locked(checked)
         self.lock_button.setChecked(checked)
         # Undoing would change the locked items
@@ -837,6 +845,76 @@ class BeeGraphicsView(MainControlsMixin,
             self.undo_stack.push(commands.ChangeText(
                 note, note.html(), note.html(), width, note.textWidth()))
         self.undo_stack.endMacro()
+
+    # Drawing
+
+    def enter_draw_mode(self, item=None):
+        """Start drawing; shapes go into ``item`` or into a new drawing
+        item."""
+
+        if self.scene.items_locked:
+            return
+        if self.draw_session:
+            self.exit_draw_mode()
+        logger.debug(f'Entering draw mode on {item}')
+        if self.scene.edit_item:
+            self.scene.edit_item.exit_edit_mode()
+        self.cancel_active_modes()
+        self.scene.clearSelection()
+        self.draw_session = widgets.drawing.DrawSession(self, item)
+        actions.actions.set_context(CONTEXT_DRAW)
+        self.viewport().setCursor(Qt.CursorShape.CrossCursor)
+        if self.draw_toolbar is None:
+            self.draw_toolbar = widgets.drawing.DrawToolbar(self)
+        self.draw_toolbar.show_toolbar()
+
+    def exit_draw_mode(self, finish=True):
+        session = self.draw_session
+        if session is None:
+            return
+        logger.debug('Exiting draw mode')
+        self.draw_session = None
+        item = session.finish() if finish else None
+        actions.actions.set_context(CONTEXT_GLOBAL)
+        self.viewport().unsetCursor()
+        if self.draw_toolbar:
+            self.draw_toolbar.hide()
+        if item is not None:
+            self.scene.select_items([item])
+
+    def on_action_draw_mode(self):
+        if self.draw_session:
+            self.exit_draw_mode()
+            return
+        selected = self.scene.selectedItems(user_only=True)
+        item = None
+        if (len(selected) == 1
+                and isinstance(selected[0], BeeDrawingItem)):
+            item = selected[0]
+        self.enter_draw_mode(item)
+
+    def set_draw_tool(self, tool):
+        if self.draw_session:
+            self.draw_session.set_tool(tool)
+            self.draw_toolbar.update_state()
+
+    def on_action_draw_tool_pen(self):
+        self.set_draw_tool('pen')
+
+    def on_action_draw_tool_line(self):
+        self.set_draw_tool('line')
+
+    def on_action_draw_tool_arrow(self):
+        self.set_draw_tool('arrow')
+
+    def on_action_draw_tool_rect(self):
+        self.set_draw_tool('rect')
+
+    def on_action_draw_tool_ellipse(self):
+        self.set_draw_tool('ellipse')
+
+    def on_action_draw_tool_eraser(self):
+        self.set_draw_tool('eraser')
 
     def open_link(self, url):
         """Open a link from a text note. Links to bee files are opened
@@ -1597,7 +1675,23 @@ class BeeGraphicsView(MainControlsMixin,
             event.accept()
             return
 
+        if self.draw_session:
+            if event.button() == Qt.MouseButton.LeftButton:
+                self.draw_session.press(
+                    self.mapToScene(event.position().toPoint()),
+                    event.modifiers())
+            event.accept()
+            return
+
         super().mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        if self.draw_session:
+            # Treat as a normal click so that quick strokes don't get
+            # lost and the scene doesn't start editing items
+            self.mousePressEvent(event)
+            return
+        super().mouseDoubleClickEvent(event)
 
     def mouseMoveEvent(self, event):
         if self.is_right_click_pending(event.position()):
@@ -1620,6 +1714,13 @@ class BeeGraphicsView(MainControlsMixin,
                 delta *= -1
             self.event_start = pos
             self.zoom(delta * 20, self.event_anchor)
+            event.accept()
+            return
+
+        if self.draw_session and self.draw_session.active:
+            self.draw_session.move(
+                self.mapToScene(event.position().toPoint()),
+                event.modifiers())
             event.accept()
             return
 
@@ -1646,6 +1747,12 @@ class BeeGraphicsView(MainControlsMixin,
             self.active_mode = None
             event.accept()
             return
+        if self.draw_session and self.draw_session.active:
+            self.draw_session.release(
+                self.mapToScene(event.position().toPoint()),
+                event.modifiers())
+            event.accept()
+            return
         if self.mouseReleaseEventMainControls(event):
             return
         super().mouseReleaseEvent(event)
@@ -1659,12 +1766,19 @@ class BeeGraphicsView(MainControlsMixin,
         self.recalc_scene_rect()
         self.welcome_overlay.resize(self.size())
         self.lock_button.update_position()
+        if self.draw_toolbar and self.draw_toolbar.isVisible():
+            self.draw_toolbar.update_position()
 
     def keyPressEvent(self, event):
         if self.keyPressEventMainControls(event):
             return
         if self.active_mode == self.SAMPLE_COLOR_MODE:
             self.cancel_sample_color_mode()
+            event.accept()
+            return
+        if self.draw_session and event.key() in (
+                Qt.Key.Key_Escape, Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.exit_draw_mode()
             event.accept()
             return
         super().keyPressEvent(event)

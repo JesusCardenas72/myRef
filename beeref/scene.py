@@ -890,7 +890,8 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 item.setSelected(True)
             if item.is_editable and not self.items_locked:
                 item.enter_edit_mode()
-                self.mousePressEvent(event)
+                if getattr(item, 'TYPE', None) != 'drawing':
+                    self.mousePressEvent(event)
             else:
                 self.views()[0].fit_rect(
                     self.itemsBoundingRect(items=[item]),

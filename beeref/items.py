@@ -27,6 +27,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
 from beeref import commands
+from beeref import drawing
 from beeref import hierarchy
 from beeref import textformat
 from beeref.actions.actions import (
@@ -1298,3 +1299,122 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
 
     def copy_to_clipboard(self, clipboard):
         clipboard.setText(self.display_name())
+
+
+@register_item
+class BeeDrawingItem(BeeItemMixin, QtWidgets.QGraphicsItem):
+    """Vector drawing: A list of shapes (see beeref.drawing)."""
+
+    TYPE = 'drawing'
+    #: Clicks this many screen pixels away from a stroke still hit it
+    HIT_TOLERANCE = 4
+
+    def __init__(self, shapes=None, **kwargs):
+        super().__init__()
+        self.save_id = None
+        self.is_image = False
+        self.shapes = [s for s in (shapes or [])
+                       if drawing.is_valid_shape(s)]
+        self._rect = drawing.shapes_rect(self.shapes)
+        self.init_selectable()
+        self.is_editable = True
+        logger.debug(f'Initialized {self}')
+
+    @classmethod
+    def create_from_data(cls, **kwargs):
+        data = kwargs.get('data') or {}
+        return cls(shapes=data.get('shapes'))
+
+    def __str__(self):
+        return f'Drawing ({len(self.shapes)} shapes)'
+
+    def default_name(self):
+        return _('Drawing')
+
+    def get_extra_save_data(self):
+        return {'shapes': drawing.copy_shapes(self.shapes)}
+
+    def set_shapes(self, shapes):
+        self.prepareGeometryChange()
+        self.shapes = shapes
+        self._rect = drawing.shapes_rect(shapes)
+        self.update()
+
+    def add_shape(self, shape):
+        self.set_shapes(self.shapes + [shape])
+
+    def update_last_shape(self, shape):
+        """Replace the last shape (e.g. while it is being drawn)."""
+
+        self.set_shapes(self.shapes[:-1] + [shape])
+
+    def bounding_rect_unselected(self):
+        if self._rect.isNull():
+            return QtCore.QRectF(0, 0, 1, 1)
+        return QtCore.QRectF(self._rect)
+
+    def screen_scale(self):
+        scene = self.scene()
+        if not scene or not scene.views():
+            return 1
+        view = scene.views()[0]
+        transform = self.deviceTransform(view.viewportTransform())
+        return max(math.hypot(transform.m11(), transform.m12()), 0.0001)
+
+    def shapes_at(self, pos, radius):
+        """Indices of the shapes within radius of pos (item coords)."""
+
+        return [i for i, shape in enumerate(self.shapes)
+                if drawing.shape_hit(shape, pos, radius)]
+
+    def contains(self, point):
+        if self.has_selection_handles():
+            return super().contains(point)
+        radius = self.HIT_TOLERANCE / self.screen_scale()
+        return bool(self.shapes_at(point, radius))
+
+    def shape(self):
+        if self.has_selection_handles():
+            return super().shape()
+        path = QtGui.QPainterPath()
+        extra = 2 * self.HIT_TOLERANCE / self.screen_scale()
+        for shape in self.shapes:
+            path.addPath(drawing.stroked_path(shape, extra))
+        return path
+
+    def paint(self, painter, option, widget):
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        for shape in self.shapes:
+            drawing.paint_shape(painter, shape)
+        self.paint_selectable(painter, option, widget)
+
+    def create_copy(self):
+        item = BeeDrawingItem(shapes=drawing.copy_shapes(self.shapes))
+        item.setPos(self.pos())
+        item.setZValue(self.zValue())
+        item.setScale(self.scale())
+        item.setRotation(self.rotation())
+        if self.flip() == -1:
+            item.do_flip()
+        return item
+
+    def enter_edit_mode(self):
+        """Double click: continue drawing on this item."""
+
+        scene = self.scene()
+        if scene and scene.views():
+            scene.views()[0].enter_draw_mode(self)
+
+    def copy_to_clipboard(self, clipboard):
+        rect = self.bounding_rect_unselected()
+        image = QtGui.QImage(
+            max(1, math.ceil(rect.width())), max(1, math.ceil(rect.height())),
+            QtGui.QImage.Format.Format_ARGB32)
+        image.fill(Qt.GlobalColor.transparent)
+        painter = QtGui.QPainter(image)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.translate(-rect.topLeft())
+        for shape in self.shapes:
+            drawing.paint_shape(painter, shape)
+        painter.end()
+        clipboard.setImage(image)

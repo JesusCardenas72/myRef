@@ -224,7 +224,24 @@ Es **la fase de mayor riesgo**: introduce relaciones padre-hijo en un código qu
 
 ---
 
-## Fase 6 · Dibujo y anotación
+## Fase 6 · Dibujo y anotación ✅ (rama `fase-6`)
+
+> Hecha. Decisiones tomadas: el modo dibujo vive en la vista
+> (`view.draw_session`), no en `scene.active_mode`, para que pan y zoom
+> con el ratón sigan funcionando mientras se dibuja; deshacer/rehacer
+> no salen del modo dibujo (cada trazo o pasada de borrador es un paso
+> de deshacer). Se añade la herramienta flecha (A) además de las
+> previstas; el estilo es sólido, discontinuo o punteado. El grosor se
+> define en píxeles de pantalla con el zoom actual (el item nuevo se
+> crea con escala 1/zoom, como los textos). Los ajustes de herramienta
+> se recuerdan durante la sesión, no en el archivo de configuración.
+> Un dibujo solo se puede pulsar sobre sus trazos (con 4 px de
+> tolerancia), así no tapa las imágenes que hay debajo; seleccionado,
+> se agarra por toda su caja. Al salir, un dibujo que se ha quedado vacío
+> se elimina. Editar un dibujo: doble clic, o seleccionarlo y pulsar
+> Ctrl+Mayús+D (también vale seleccionarlo desde el panel de
+> jerarquía). SVG: cada dibujo es un `<g transform="matrix(...)">` con
+> un `<path>` por forma.
 
 | Feature | Esfuerzo | Implementación |
 |---|---|---|

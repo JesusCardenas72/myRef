@@ -23,7 +23,7 @@ from xml.etree import ElementTree as ET
 from PyQt6 import QtCore, QtGui
 
 from .errors import BeeFileIOError
-from beeref import constants, hierarchy, widgets
+from beeref import constants, drawing, hierarchy, widgets
 from beeref.i18n import _
 from beeref.items import BeePixmapItem, items_in_order
 
@@ -239,6 +239,22 @@ class SceneToSVGExporter(SceneExporterBase):
         self.size = self.default_size
         return True
 
+    def _get_drawing_element(self, item, offset):
+        """A group of SVG paths for a drawing item."""
+
+        transform = item.sceneTransform() * QtGui.QTransform.fromTranslate(
+            -offset.x(), -offset.y())
+        values = [transform.m11(), transform.m12(), transform.m21(),
+                  transform.m22(), transform.dx(), transform.dy()]
+        group = ET.Element('g', attrib={
+            'transform': 'matrix({})'.format(
+                ' '.join(f'{round(v, 6):g}' for v in values)),
+            'opacity': str(item.opacity())})
+        for shape in item.shapes:
+            group.append(ET.Element('path',
+                                    attrib=drawing.svg_attributes(shape)))
+        return group
+
     def _get_textstyles(self, item, scale=None):
         fontstylemap = {
             QtGui.QFont.Style.StyleNormal: 'normal',
@@ -273,6 +289,12 @@ class SceneToSVGExporter(SceneExporterBase):
                   - QtCore.QPointF(self.margin, self.margin))
 
         for i, item in enumerate(self.items):
+            if item.TYPE == 'drawing':
+                svg.append(self._get_drawing_element(item, offset))
+                self.emit_progress(worker, i)
+                if worker and worker.canceled:
+                    return
+                continue
             if item.TYPE not in ('text', 'pixmap'):
                 # E.g. placeholders for images that couldn't be loaded
                 logger.debug(f'Not exporting {item} to SVG')
