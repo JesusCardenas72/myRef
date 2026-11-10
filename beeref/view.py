@@ -25,6 +25,7 @@ from PyQt6.QtCore import Qt
 
 from beeref.actions import ActionsMixin, actions
 from beeref.actions.actions import CONTEXT_GLOBAL
+from beeref.canvas import CanvasMixin
 from beeref import commands
 from beeref.config import (
     BeeSettings,
@@ -51,6 +52,7 @@ logger = logging.getLogger(__name__)
 
 
 class BeeGraphicsView(MainControlsMixin,
+                      CanvasMixin,
                       QtWidgets.QGraphicsView,
                       ActionsMixin,
                       WindowModesMixin):
@@ -97,6 +99,7 @@ class BeeGraphicsView(MainControlsMixin,
 
         # Context menu and actions
         self.init_window_mode_state()
+        self.init_canvas_state()
         self.build_menu_and_actions()
         self.lock_button.clicked.connect(
             actions.actions['lock_items'].qaction.setChecked)
@@ -199,6 +202,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.lock_button.apply_settings()
         self.update_titlebar_button()
         self.on_window_settings_changed()
+        self.on_canvas_settings_changed()
 
     def rebuild_titlebar_button(self):
         """Replaces an existing tablet mode button of the title bar. It

@@ -271,6 +271,33 @@ class BeeSettings(QtCore.QSettings):
             'cast': int,
             'validate': lambda x: 2 <= x <= 40,
         },
+        'Canvas/grid_size': {
+            'default': 50,
+            'cast': int,
+            'validate': lambda x: 5 <= x <= 1000,
+            'post_save_callback': notify_view_settings_changed,
+        },
+        'Canvas/grid_style': {
+            'default': 'lines',
+            'validate': lambda x: x in ('lines', 'dots'),
+            'post_save_callback': notify_view_settings_changed,
+        },
+        'Canvas/snap_distance': {
+            'default': 10,
+            'cast': int,
+            'validate': lambda x: 1 <= x <= 50,
+        },
+        'Canvas/highlight_canvas': {
+            'default': False,
+            'cast': cast_bool,
+            'post_save_callback': notify_view_settings_changed,
+        },
+        'Canvas/margin': {
+            'default': 50,
+            'cast': int,
+            'validate': lambda x: 0 <= x <= 1000,
+            'post_save_callback': notify_view_settings_changed,
+        },
         'LockIcon/corner': {
             'default': 'bottom_left',
             'validate': lambda x: x in LOCK_ICON_CORNERS,

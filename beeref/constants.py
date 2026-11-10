@@ -43,5 +43,11 @@ COLORS = {
     # BeeRef specific:
     'Scene:Selection': (116, 234, 231),
     'Scene:Canvas': (60, 60, 60),
+    'Scene:CanvasArea': (68, 68, 68),
+    'Scene:Grid': (78, 78, 78),
+    'Scene:GridMajor': (96, 96, 96),
+    'Scene:GridDot': (115, 115, 115),
+    'Scene:GridDotMajor': (150, 150, 150),
+    'Scene:SnapGuide': (116, 234, 231),
     'Scene:Text': (200, 200, 200),
 }

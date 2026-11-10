@@ -67,6 +67,40 @@ TRANSLATIONS = {
     '&Lock Images': 'B&loquear imágenes',
     'Move &Window': 'Mover &ventana',
     'Wi&ndow': 'Ve&ntana',
+    'Can&vas': 'Lien&zo',
+    '&Show Grid': '&Mostrar cuadrícula',
+    'Snap to &Grid': 'Imantar a la &cuadrícula',
+    'Snap to &Items': 'Imantar a los &elementos',
+    '&Focus Canvas': 'Enfocar &lienzo',
+    '&Optimize Canvas': '&Optimizar lienzo',
+    '&Canvas': 'Lien&zo',
+    'Grid Size:': 'Tamaño de la cuadrícula:',
+    ('Distance between the grid lines at 100% zoom. When zoomed '
+     'out, the grid gets coarser.'):
+    ('Distancia entre las líneas de la cuadrícula con zoom al 100 %. '
+     'Al alejar, la cuadrícula se hace más gruesa.'),
+    'Grid Style:': 'Estilo de la cuadrícula:',
+    'How the grid is drawn.': 'Cómo se dibuja la cuadrícula.',
+    'Lines': 'Líneas',
+    'Dots': 'Puntos',
+    'Snap Distance:': 'Distancia de imantado:',
+    ('How close items have to get to the edges of other items '
+     'to snap to them, in screen pixels. Hold Alt while moving '
+     'to not snap.'):
+    ('Cuánto tienen que acercarse los elementos a los bordes de otros '
+     'para imantarse a ellos, en píxeles de pantalla. Mantén Alt al '
+     'mover para no imantar.'),
+    'Canvas Area:': 'Área del lienzo:',
+    ('Draw the area around all items a bit brighter than the '
+     'background.'):
+    ('Dibuja el área alrededor de todos los elementos un poco más clara '
+     'que el fondo.'),
+    'Highlight': 'Resaltar',
+    'Canvas Margin:': 'Margen del lienzo:',
+    ('Space around the items that belongs to the canvas area. '
+     'Also used by View > Canvas > Focus Canvas.'):
+    ('Espacio alrededor de los elementos que forma parte del área del '
+     'lienzo. También lo usa Ver > Lienzo > Enfocar lienzo.'),
     'Always On &Bottom': 'Siempre &debajo',
     'Always On Top of A&pplication...': 'Siempre encima de una a&plicación...',
     '&Click-Through': 'Transparente al &ratón',

@@ -115,7 +115,22 @@ Código en `__main__.py` (`BeeRefMainWindow`) y `view.py`.
 
 ---
 
-## Fase 3 · Cuadrícula, snapping y lienzo
+## Fase 3 · Cuadrícula, snapping y lienzo ✅ (rama `fase-3`)
+
+> Hecha. Decisiones tomadas: el snapping se hace en
+> `BeeGraphicsScene.mouseMoveEvent` corrigiendo el delta (igual que el
+> movimiento restringido con Shift), no en `itemChange`, para que todo
+> el grupo seleccionado se mueva junto. Se imantan bordes y centros a
+> otros items (umbral en píxeles de pantalla, Ajustes > Lienzo); si no
+> hay ninguno cerca, los bordes exteriores van a la cuadrícula. Alt
+> desactiva el imantado mientras se mueve. La cuadrícula se dibuja en
+> `drawBackground` con origen en (0, 0) y dobla su tamaño al alejar
+> (nunca menos de 12 px en pantalla); se imanta a la cuadrícula visible.
+> Atajos: Ctrl+' (cuadrícula), Ctrl+Shift+' (imantar a cuadrícula),
+> Shift+Space (imantar a items). Como el lienzo de BeeRef es infinito,
+> "Optimizar lienzo" centra todos los items en el origen (deshacible) y
+> "Enfocar lienzo" ajusta la vista al área del lienzo (items + margen).
+> El área del lienzo más clara es opcional (desactivada por defecto).
 
 | Feature | Esfuerzo | Implementación |
 |---|---|---|

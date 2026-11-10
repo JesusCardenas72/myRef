@@ -77,6 +77,17 @@ menu_structure = [
             'tablet_mode',
             'lock_items',
             'grayscale_canvas',
+            {
+                'menu': 'Can&vas',
+                'items': [
+                    'show_grid',
+                    'snap_to_grid',
+                    'snap_to_items',
+                    MENU_SEPARATOR,
+                    'focus_canvas',
+                    'optimize_canvas',
+                ],
+            },
             MENU_SEPARATOR,
             'move_window',
             {
