@@ -23,7 +23,7 @@ from PyQt6 import QtCore, QtGui
 from .errors import BeeFileIOError
 from beeref import constants, widgets
 from beeref.i18n import _
-from beeref.items import BeePixmapItem
+from beeref.items import BeePixmapItem, items_in_order
 
 
 logger = logging.getLogger(__name__)
@@ -314,7 +314,8 @@ class ImagesToDirectoryExporter(ExporterBase):
     def __init__(self, scene, dirname):
         self.scene = scene
         self.dirname = dirname
-        self.items = list(self.scene.items_by_type(BeePixmapItem.TYPE))
+        self.items = items_in_order(
+            self.scene.items_by_type(BeePixmapItem.TYPE))
         self.max_save_id = 0
         for item in self.items:
             if item.save_id:

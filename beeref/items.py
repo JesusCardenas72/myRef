@@ -70,6 +70,27 @@ def sort_by_filename(items):
     return items_by_filename + items_by_save_id + items_remaining
 
 
+def items_in_order(items):
+    """Order items in the canonical (hierarchy) order.
+
+    This is the order used wherever the order of items matters but
+    isn't chosen explicitly by the user, e.g. for exporting. Items
+    with a ``sort_order`` come first, ordered by it; the remaining
+    items follow, ordered by ``sort_by_filename``.
+    """
+
+    with_order = []
+    without_order = []
+    for item in items:
+        if getattr(item, 'sort_order', None) is not None:
+            with_order.append(item)
+        else:
+            without_order.append(item)
+
+    with_order.sort(key=lambda x: x.sort_order)
+    return with_order + sort_by_filename(without_order)
+
+
 class BeeItemMixin(SelectableMixin):
     """Base for all items added by the user."""
 
