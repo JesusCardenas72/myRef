@@ -440,7 +440,6 @@ class SettingsDialog(QtWidgets.QDialog):
         tablet_layout.addWidget(TabletZoomInvertedWidget(), 1, 0)
         tablet_layout.addWidget(TabletTitlebarButtonWidget(), 1, 1)
         tabs.addTab(tablet, '')
-        tabs.addTab(export, '')
 
         # Lock Icon
         lock_icon = QtWidgets.QWidget()
@@ -450,6 +449,7 @@ class SettingsDialog(QtWidgets.QDialog):
         lock_icon_layout.addWidget(LockIconSizeWidget(), 0, 1)
         lock_icon_layout.addWidget(LockIconTransparencyWidget(), 1, 1)
         tabs.addTab(lock_icon, '')
+        tabs.addTab(export, '')
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)

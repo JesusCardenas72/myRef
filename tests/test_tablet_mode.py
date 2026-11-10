@@ -10,6 +10,7 @@ from beeref.config.controls import mouse_binding_matches_event
 from beeref.config.settings import cast_bool, is_valid_mouse_binding
 from beeref.items import BeePixmapItem, BeeTextItem
 from beeref.widgets.settings import (
+    ExportNameTemplateWidget,
     LockIconCornerWidget,
     LockIconSizeWidget,
     LockIconTransparencyWidget,
@@ -778,9 +779,13 @@ def test_titlebar_button_tooltip_is_translated(titlebar_button, settings):
 
 def test_settings_dialog_has_tablet_and_lock_tabs(view):
     dialog = SettingsDialog(view)
-    assert dialog.tabs.count() == 4
+    assert dialog.tabs.count() == 5
     assert dialog.tabs.tabText(2) == '&Tablet Mode'
     assert dialog.tabs.tabText(3) == '&Lock Icon'
+    assert dialog.tabs.tabText(4) == 'E&xport'
+    assert isinstance(
+        dialog.tabs.widget(4).findChild(ExportNameTemplateWidget),
+        ExportNameTemplateWidget)
     dialog.close()
 
 

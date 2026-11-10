@@ -4,6 +4,30 @@
 Added
 -----
 
+* Align items left/right/top/bottom (Ctrl + Arrow Keys), distribute
+  them evenly and stack them (Arrange menu).
+* Normalize by longest side and by scale; normalize either to the
+  average or to the first item (Settings -> Images & Items).
+* Arrange in a square grid by time added or randomly.
+* Arrange, normalize and align now apply to all items when nothing
+  is selected.
+* Duplicate (Ctrl + D), Zoom In/Out (Ctrl + Plus/Minus), Actual Size
+  (0) and Center on Origin.
+* Hold Shift while moving to move only horizontally or vertically.
+* Hold Shift + Alt while scaling or rotating several items to
+  transform each around its own center.
+* View -> Grayscale Canvas (Ctrl + Alt + G) shows all images in
+  grayscale without changing them.
+* Images -> Pixelated (Alt + T) turns off smoothing for selected
+  images, e.g. for pixel art.
+* File -> Export Selection as Scene and File -> Export Selected Images.
+* File name templates and cropped export for exported images
+  (Settings -> Export).
+* Edit -> Copy as File copies images as PNG files for pasting into
+  file browsers.
+* File -> Open Last Scene (Ctrl + Shift + L), File -> Show in File
+  Browser (Ctrl + Alt + L), and double-click the empty canvas to open
+  a scene.
 * The undo history size is now configurable
   (Settings -> Settings -> Miscellaneous -> Undo History Size).
 * Keyboard shortcuts can now belong to a context (e.g. text editing).
@@ -49,6 +73,7 @@ Added
 Fixed
 -----
 
+* Snapped rotations are now also snapped when undoing/redoing them.
 * Fixed a random crash when exporting the scene: The scene is now only
   accessed in the main thread, the image is written in the background.
 * Fixed "Confirm when closing an unsaved file" being turned on again
