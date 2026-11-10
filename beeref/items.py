@@ -70,6 +70,23 @@ def sort_by_filename(items):
     return items_by_filename + items_by_save_id + items_remaining
 
 
+def sort_by_addition(items):
+    """Order items by the time they were added to the scene.
+
+    Items without that information (e.g. from older bee files) come
+    first, ordered by save_id.
+    """
+
+    def key(item):
+        added_at = getattr(item, 'added_at', None)
+        save_id = getattr(item, 'save_id', None)
+        return (added_at is not None,
+                added_at or 0,
+                save_id if save_id is not None else float('inf'))
+
+    return sorted(items, key=key)
+
+
 def items_in_order(items):
     """Order items in the canonical (hierarchy) order.
 
@@ -134,10 +151,10 @@ class BeeItemMixin(SelectableMixin):
         self.setRotation(kwargs.get('rotation', self.rotation()))
         if kwargs.get('flip', 1) != self.flip():
             self.do_flip()
-        self.update_hierarchy_from_data(**kwargs)
+        self.update_common_from_data(**kwargs)
 
-    def update_hierarchy_from_data(self, **kwargs):
-        """Remember hierarchy info from a bee file.
+    def update_common_from_data(self, **kwargs):
+        """Set data common to all item types from a bee file.
 
         The parent can only be assigned once it has been added to the
         scene, see ``BeeGraphicsScene.resolve_parents``.
@@ -145,6 +162,15 @@ class BeeItemMixin(SelectableMixin):
         self.sort_order = kwargs.get(
             'sort_order', getattr(self, 'sort_order', None))
         self.pending_parent_id = kwargs.get('parent_id')
+        data = kwargs.get('data') or {}
+        self.added_at = data.get('added_at', getattr(self, 'added_at', None))
+
+    def get_common_save_data(self):
+        """Data common to all item types to be stored in the bee file."""
+        data = {}
+        if getattr(self, 'added_at', None) is not None:
+            data['added_at'] = self.added_at
+        return data
 
 
 @register_item
@@ -165,6 +191,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         self.init_selectable()
         self.settings = BeeSettings()
         self.grayscale = False
+        self.nearest_neighbor = False
 
     @classmethod
     def create_from_data(self, **kwargs):
@@ -175,6 +202,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
             item.crop = QtCore.QRectF(*data['crop'])
         item.setOpacity(data.get('opacity', 1))
         item.grayscale = data.get('grayscale', False)
+        item.nearest_neighbor = data.get('nearest_neighbor', False)
         return item
 
     def __str__(self):
@@ -198,9 +226,24 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
 
     @grayscale.setter
     def grayscale(self, value):
-        logger.debug('Setting grayscale for {self} to {value}')
+        logger.debug(f'Setting grayscale for {self} to {value}')
         self._grayscale = value
+        self._grayscale_pixmap = None
         if value is True:
+            self.get_grayscale_pixmap()
+        self.update()
+
+    @property
+    def displays_grayscale(self):
+        """Whether the image is shown in grayscale, either by itself or
+        because the whole canvas is shown in grayscale."""
+        return self.grayscale or bool(
+            self.scene() and getattr(self.scene(), 'grayscale_canvas', False))
+
+    def get_grayscale_pixmap(self):
+        """The grayscale version of the pixmap (cached)."""
+
+        if self._grayscale_pixmap is None:
             # Using the grayscale image format to convert to grayscale
             # loses an image's tranparency. So the straightworward
             # following method gives us an ugly black replacement:
@@ -234,15 +277,12 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
             #
             # 3. Going through every pixel and doing it manually — bad
             # performance.
-        else:
-            self._grayscale_pixmap = None
-
-        self.update()
+        return self._grayscale_pixmap
 
     def sample_color_at(self, pos):
         ipos = self.mapFromScene(pos)
-        if self.grayscale:
-            pm = self._grayscale_pixmap
+        if self.displays_grayscale:
+            pm = self.get_grayscale_pixmap()
         else:
             pm = self.pixmap()
         img = pm.toImage()
@@ -258,13 +298,16 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
             return self.crop
 
     def get_extra_save_data(self):
-        return {'filename': self.filename,
+        data = {'filename': self.filename,
                 'opacity': self.opacity(),
                 'grayscale': self.grayscale,
                 'crop': [self.crop.topLeft().x(),
                          self.crop.topLeft().y(),
                          self.crop.width(),
                          self.crop.height()]}
+        if self.nearest_neighbor:
+            data['nearest_neighbor'] = True
+        return data
 
     def get_filename_for_export(self, imgformat, save_id_default=None):
         save_id = self.save_id or save_id_default
@@ -298,7 +341,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         buffer = QtCore.QBuffer(barray)
         buffer.open(QtCore.QIODevice.OpenModeFlag.WriteOnly)
         if apply_grayscale and self.grayscale:
-            pm = self._grayscale_pixmap
+            pm = self.get_grayscale_pixmap()
         else:
             pm = self.pixmap()
 
@@ -312,6 +355,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
 
     def setPixmap(self, pixmap):
         super().setPixmap(pixmap)
+        self._grayscale_pixmap = None
         self.reset_crop()
 
     def pixmap_from_bytes(self, data):
@@ -329,6 +373,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         item.setRotation(self.rotation())
         item.setOpacity(self.opacity())
         item.grayscale = self.grayscale
+        item.nearest_neighbor = self.nearest_neighbor
         if self.flip() == -1:
             item.do_flip()
         item.crop = self.crop
@@ -489,10 +534,13 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         painter.drawRect(rect)
 
     def paint(self, painter, option, widget):
-        if abs(painter.combinedTransform().m11()) < 2:
+        if (not self.nearest_neighbor
+                and abs(painter.combinedTransform().m11()) < 2):
             # We want image smoothing, but only for images where we
             # are not zoomed in a lot. This is to ensure that for
             # example icons and pixel sprites can be viewed correctly.
+            # Users can turn smoothing off completely per image
+            # (e.g. for pixel art).
             painter.setRenderHint(painter.RenderHint.SmoothPixmapTransform)
 
         if self.crop_mode:
@@ -513,7 +561,10 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
                 self.draw_crop_rect(painter, handle())
             self.draw_crop_rect(painter, self.crop_temp)
         else:
-            pm = self._grayscale_pixmap if self.grayscale else self.pixmap()
+            if self.displays_grayscale:
+                pm = self.get_grayscale_pixmap()
+            else:
+                pm = self.pixmap()
             painter.drawPixmap(self.crop, pm, self.crop)
             self.paint_selectable(painter, option, widget)
 
@@ -827,7 +878,7 @@ class BeeErrorItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.setZValue(kwargs.get('z', self.zValue()))
         self.setScale(kwargs.get('scale', self.scale()))
         self.setRotation(kwargs.get('rotation', self.rotation()))
-        self.update_hierarchy_from_data(**kwargs)
+        self.update_common_from_data(**kwargs)
 
     def create_copy(self):
         item = BeeErrorItem(self.toPlainText())

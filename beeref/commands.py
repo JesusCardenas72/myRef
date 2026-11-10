@@ -13,7 +13,19 @@
 # You should have received a copy of the GNU General Public License
 # along with BeeRef.  If not, see <https://www.gnu.org/licenses/>.
 
+import time
+
 from PyQt6 import QtCore, QtGui
+
+
+def local_anchor(item, anchor):
+    """Map a scene anchor to item coordinates.
+
+    An anchor of ``None`` means the item's own center.
+    """
+    if anchor is None:
+        return item.center
+    return item.mapFromScene(anchor)
 
 
 class InsertItems(QtGui.QUndoCommand):
@@ -38,6 +50,8 @@ class InsertItems(QtGui.QUndoCommand):
                 self.old_positions.append(item.pos())
                 item.setPos(item.pos() + self.position - rect.center())
         for item in self.items:
+            if getattr(item, 'added_at', None) is None:
+                item.added_at = time.time()
             self.scene.addItem(item)
             item.setSelected(True)
             item.bring_to_front()
@@ -89,7 +103,10 @@ class MoveItemsBy(QtGui.QUndoCommand):
 
 
 class ScaleItemsBy(QtGui.QUndoCommand):
-    """Scale items by a given factor around the given anchor."""
+    """Scale items by a given factor around the given anchor.
+
+    An anchor of ``None`` scales each item around its own center.
+    """
 
     def __init__(self, items, factor, anchor, ignore_first_redo=False):
         super().__init__('Scale items')
@@ -104,16 +121,19 @@ class ScaleItemsBy(QtGui.QUndoCommand):
             return
         for item in self.items:
             item.setScale(item.scale() * self.factor,
-                          item.mapFromScene(self.anchor))
+                          local_anchor(item, self.anchor))
 
     def undo(self):
         for item in self.items:
             item.setScale(item.scale() / self.factor,
-                          item.mapFromScene(self.anchor))
+                          local_anchor(item, self.anchor))
 
 
 class RotateItemsBy(QtGui.QUndoCommand):
-    """Rotate items by a given delta around the given anchor."""
+    """Rotate items by a given delta around the given anchor.
+
+    An anchor of ``None`` rotates each item around its own center.
+    """
 
     def __init__(self, items, delta, anchor, ignore_first_redo=False):
         super().__init__('Rotate items')
@@ -129,12 +149,12 @@ class RotateItemsBy(QtGui.QUndoCommand):
         for item in self.items:
             item.setRotation(
                 item.rotation() + self.delta * item.flip(),
-                item.mapFromScene(self.anchor))
+                local_anchor(item, self.anchor))
 
     def undo(self):
         for item in self.items:
             item.setRotation(item.rotation() - self.delta * item.flip(),
-                             item.mapFromScene(self.anchor))
+                             local_anchor(item, self.anchor))
 
 
 class NormalizeItems(QtGui.QUndoCommand):
@@ -347,6 +367,26 @@ class ChangeOpacity(QtGui.QUndoCommand):
     def undo(self):
         for item, opacity in zip(self.items, self.old_opacities):
             item.setOpacity(opacity)
+
+
+class ToggleNearestNeighbor(QtGui.QUndoCommand):
+    """Toggle pixelated display (no smoothing) on images."""
+
+    def __init__(self, items, value):
+        super().__init__('Toggle Pixelated')
+        self.items = [item for item in items if item.is_image]
+        self.value = value
+        self.old_values = [item.nearest_neighbor for item in self.items]
+
+    def redo(self):
+        for item in self.items:
+            item.nearest_neighbor = self.value
+            item.update()
+
+    def undo(self):
+        for item, value in zip(self.items, self.old_values):
+            item.nearest_neighbor = value
+            item.update()
 
 
 class ToggleGrayscale(QtGui.QUndoCommand):

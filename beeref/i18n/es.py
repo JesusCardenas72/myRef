@@ -222,6 +222,56 @@ TRANSLATIONS = {
      'Usa 0 para no poner límite.'),
     'Text Editing': 'Edición de texto',
     'Drawing': 'Dibujo',
+    'Dup&licate': 'D&uplicar',
+    'Zoom &In': 'A&cercar',
+    'Zoom &Out': 'Ale&jar',
+    'Act&ual Size': 'Tamaño &real',
+    '&Center on Origin': 'Centrar en el ori&gen',
+    '&Longest Side': 'Lado más &largo',
+    'S&cale': '&Escala',
+    'Square (by &time added)': 'Cuadrado (por orden de &inserción)',
+    'Square (ran&dom)': 'Cuadrado (&aleatorio)',
+    'Align &Left': 'Alinear a la i&zquierda',
+    'Align R&ight': 'Alinear a la &derecha',
+    'Align To&p': 'Alinear arri&ba',
+    'Align &Bottom': 'Alinear aba&jo',
+    'Distribute Hori&zontally': 'Distribuir horizontal&mente',
+    'Distribute V&ertically': 'Distribuir verticalm&ente',
+    'St&ack': 'Api&lar',
+    '&Pixelated (No Smoothing)': '&Pixelado (sin suavizado)',
+    '&Grayscale Canvas': 'Lienzo en escala de gr&ises',
+    'Export S&election as Scene...': 'Exportar selección como &escena...',
+    'Export Selected Ima&ges...': 'Exportar imágenes selecci&onadas...',
+    'Copy as &File': 'Copiar como arc&hivo',
+    'E&xport': 'E&xportar',
+    'Image File Names:': 'Nombres de archivo de imagen:',
+    ('Template for file names when exporting images. '
+     '%0: original name, %1: number, %2: zero-padded number, '
+     '%3: scene name. Leave empty for the default names.'):
+    ('Plantilla para los nombres de archivo al exportar imágenes. '
+     '%0: nombre original, %1: número, %2: número con ceros, '
+     '%3: nombre de la escena. Déjalo vacío para los nombres '
+     'predeterminados.'),
+    'e.g. %2 - %0': 'p. ej. %2 - %0',
+    'Cropped Images:': 'Imágenes recortadas:',
+    ('When exporting images, export only the visible area of '
+     'cropped images instead of the whole image.'):
+    ('Al exportar imágenes, exportar solo el área visible de las '
+     'imágenes recortadas en lugar de la imagen completa.'),
+    'Export cropped area only': 'Exportar solo el área recortada',
+    'Open &Last Scene': 'Abrir ú&ltima escena',
+    'Show in File &Browser': 'Mostrar en el explorador de archi&vos',
+    'No recently opened scenes': 'No hay escenas abiertas recientemente',
+    'The scene has not been saved yet': 'La escena aún no se ha guardado',
+    'Normalize To:': 'Normalizar respecto a:',
+    'Which size the normalize actions use as reference':
+    'Qué tamaño usan como referencia las acciones de normalizar',
+    'Average': 'Promedio',
+    'The average of all affected items':
+    'El promedio de todos los elementos afectados',
+    'First Item': 'Primer elemento',
+    'The first item in hierarchy order':
+    'El primer elemento en el orden de la jerarquía',
     'Undo History Size:': 'Tamaño del historial de deshacer:',
     ('How many steps can be undone. Takes effect with the next '
      'new or opened scene. More steps use more memory.'):

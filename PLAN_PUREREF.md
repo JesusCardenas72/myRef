@@ -43,7 +43,14 @@ Cada feature nueva se considera terminada solo si incluye:
 
 ---
 
-## Fase 1 · Victorias rápidas (sin cambios de formato)
+## Fase 1 · Victorias rápidas (sin cambios de formato) ✅ (rama `fase-1`)
+
+> Hecha. Diferencias con lo previsto: "Normalizar área" ya existía como
+> "Tamaño", así que se añadió "Lado más largo" (el "tamaño" de PureRef).
+> La plantilla de nombres y el recorte al exportar están en Ajustes >
+> Exportar en vez de en un diálogo. El doble clic para abrir solo actúa
+> con el lienzo vacío. Arrange por ruta = el actual "por nombre de
+> archivo" (ya ordena por ruta completa).
 
 Todo vive en `scene.py`, `view.py`, `commands.py` y `fileio/export.py`, reutilizando `ArrangeItems`, `NormalizeItems` y los exportadores existentes.
 

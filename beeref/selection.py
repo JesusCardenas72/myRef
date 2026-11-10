@@ -428,6 +428,7 @@ class SelectableMixin(BaseItemMixin):
                         self.get_scale_anchor(corner))
                     for item in self.selection_action_items():
                         item.scale_orig_factor = item.scale()
+                        item.scale_orig_pos = item.pos()
                     event.accept()
                     return
                 # Check if we are in one of the corner's rotate areas
@@ -439,6 +440,7 @@ class SelectableMixin(BaseItemMixin):
                         event.scenePos())
                     for item in self.selection_action_items():
                         item.rotate_orig_degrees = item.rotation()
+                        item.rotate_orig_pos = item.pos()
                     event.accept()
                     return
                 # Check if we are in one of the flip edges:
@@ -548,20 +550,11 @@ class SelectableMixin(BaseItemMixin):
             self.scene().views()[0].reset_previous_transform()
 
         if self.active_mode == self.SCALE_MODE:
-            factor = self.get_scale_factor(event)
-            for item in self.selection_action_items():
-                item.setScale(item.scale_orig_factor * factor,
-                              item.mapFromScene(self.event_anchor))
+            self.apply_scale(event)
             event.accept()
             return
         if self.active_mode == self.ROTATE_MODE:
-            snap = (event.modifiers() == Qt.KeyboardModifier.ControlModifier
-                    or event.modifiers() == Qt.KeyboardModifier.ShiftModifier)
-            delta = self.get_rotate_delta(event.scenePos(), snap)
-            for item in self.selection_action_items():
-                item.setRotation(
-                    item.rotate_orig_degrees + delta * item.flip(),
-                    item.mapFromScene(self.event_anchor))
+            self.apply_rotation(event)
             event.accept()
             return
         if self.active_mode == self.FLIP_MODE:
@@ -573,26 +566,79 @@ class SelectableMixin(BaseItemMixin):
 
         super().mouseMoveEvent(event)
 
+    def get_transform_anchor(self, event):
+        """The scene anchor for scaling/rotating, or ``None`` if each item
+        should be transformed around its own center (Shift + Alt)."""
+
+        own_centers = (Qt.KeyboardModifier.ShiftModifier
+                       | Qt.KeyboardModifier.AltModifier)
+        if event.modifiers() == own_centers:
+            return None
+        return self.event_anchor
+
+    @staticmethod
+    def _restore_orig_pos(item, attr):
+        """Reset an item to its position from the start of the
+        transformation, so that changing the anchor mid-drag works."""
+        orig_pos = getattr(item, attr, None)
+        if orig_pos is not None:
+            item.setPos(orig_pos)
+
+    def apply_scale(self, event):
+        """Scale items according to the mouse event.
+
+        :returns: (factor, anchor) with anchor ``None`` for scaling around
+            each item's own center
+        """
+        factor = self.get_scale_factor(event)
+        anchor = self.get_transform_anchor(event)
+        for item in self.selection_action_items():
+            item.setScale(item.scale_orig_factor)
+            self._restore_orig_pos(item, 'scale_orig_pos')
+            item.setScale(item.scale_orig_factor * factor,
+                          commands.local_anchor(item, anchor))
+        return factor, anchor
+
+    def apply_rotation(self, event):
+        """Rotate items according to the mouse event.
+
+        :returns: (delta, anchor) with anchor ``None`` for rotating around
+            each item's own center
+        """
+        snap = (event.modifiers() == Qt.KeyboardModifier.ControlModifier
+                or event.modifiers() == Qt.KeyboardModifier.ShiftModifier)
+        delta = self.get_rotate_delta(event.scenePos(), snap)
+        anchor = self.get_transform_anchor(event)
+        for item in self.selection_action_items():
+            item.setRotation(item.rotate_orig_degrees)
+            self._restore_orig_pos(item, 'rotate_orig_pos')
+            item.setRotation(
+                item.rotate_orig_degrees + delta * item.flip(),
+                commands.local_anchor(item, anchor))
+        return delta, anchor
+
     def mouseReleaseEvent(self, event):
         if self.active_mode == self.SCALE_MODE:
-            if self.get_scale_factor(event) != 1:
+            factor, anchor = self.apply_scale(event)
+            if factor != 1:
                 self.scene().undo_stack.push(
                     commands.ScaleItemsBy(
                         self.selection_action_items(),
-                        self.get_scale_factor(event),
-                        self.event_anchor,
+                        factor,
+                        anchor,
                         ignore_first_redo=True))
             event.accept()
             self.active_mode = None
             return
         elif self.active_mode == self.ROTATE_MODE:
+            delta, anchor = self.apply_rotation(event)
             self.scene().on_selection_change()
-            if self.get_rotate_delta(event.scenePos()) != 0:
+            if delta != 0:
                 self.scene().undo_stack.push(
                     commands.RotateItemsBy(
                         self.selection_action_items(),
-                        self.get_rotate_delta(event.scenePos()),
-                        self.event_anchor,
+                        delta,
+                        anchor,
                         ignore_first_redo=True))
             event.accept()
             self.active_mode = None

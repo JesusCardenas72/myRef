@@ -159,6 +159,27 @@ class SingleCheckboxGroup(GroupBase):
         self.input.setText(_(self.LABEL))
 
 
+class TextGroup(GroupBase):
+    PLACEHOLDER = ''
+
+    def __init__(self):
+        super().__init__()
+        self.input = QtWidgets.QLineEdit()
+        self.input.setPlaceholderText(_(self.PLACEHOLDER))
+        self.set_value(self.settings.valueOrDefault(self.KEY))
+        self.input.textChanged.connect(self.on_value_changed)
+        self.layout.addWidget(self.input)
+        self.layout.addStretch(100)
+        self.ignore_value_changed = False
+
+    def set_value(self, value):
+        self.input.setText(value)
+
+    def retranslate(self):
+        super().retranslate()
+        self.input.setPlaceholderText(_(self.PLACEHOLDER))
+
+
 class MouseBindingGroup(GroupBase):
     """A mouse button plus modifier keys, stored as e.g. ``Ctrl+Right``."""
 
@@ -245,6 +266,15 @@ class ArrangeDefaultWidget(RadioGroup):
         ('square', 'Square (by filename)', 'Arrange Square (by filename)'))
 
 
+class NormalizeSourceWidget(RadioGroup):
+    TITLE = 'Normalize To:'
+    HELPTEXT = 'Which size the normalize actions use as reference'
+    KEY = 'Items/normalize_source'
+    OPTIONS = (
+        ('average', 'Average', 'The average of all affected items'),
+        ('first', 'First Item', 'The first item in hierarchy order'))
+
+
 class ImageStorageFormatWidget(RadioGroup):
     TITLE = 'Image Storage Format:'
     HELPTEXT = ('How images are stored inside bee files.'
@@ -274,6 +304,23 @@ class AllocationLimitWidget(IntegerGroup):
     KEY = 'Items/image_allocation_limit'
     MIN = 0
     MAX = 10000
+
+
+class ExportNameTemplateWidget(TextGroup):
+    TITLE = 'Image File Names:'
+    HELPTEXT = ('Template for file names when exporting images. '
+                '%0: original name, %1: number, %2: zero-padded number, '
+                '%3: scene name. Leave empty for the default names.')
+    PLACEHOLDER = 'e.g. %2 - %0'
+    KEY = 'Export/name_template'
+
+
+class ExportCroppedWidget(SingleCheckboxGroup):
+    TITLE = 'Cropped Images:'
+    HELPTEXT = ('When exporting images, export only the visible area of '
+                'cropped images instead of the whole image.')
+    LABEL = 'Export cropped area only'
+    KEY = 'Export/cropped'
 
 
 class UndoLimitWidget(IntegerGroup):
@@ -374,7 +421,15 @@ class SettingsDialog(QtWidgets.QDialog):
         items_layout.addWidget(AllocationLimitWidget(), 0, 1)
         items_layout.addWidget(ArrangeGapWidget(), 1, 0)
         items_layout.addWidget(ArrangeDefaultWidget(), 1, 1)
+        items_layout.addWidget(NormalizeSourceWidget(), 2, 0)
         tabs.addTab(items, '')
+
+        # Export
+        export = QtWidgets.QWidget()
+        export_layout = QtWidgets.QGridLayout()
+        export.setLayout(export_layout)
+        export_layout.addWidget(ExportNameTemplateWidget(), 0, 0)
+        export_layout.addWidget(ExportCroppedWidget(), 0, 1)
 
         # Tablet Mode
         tablet = QtWidgets.QWidget()
@@ -394,6 +449,7 @@ class SettingsDialog(QtWidgets.QDialog):
         lock_icon_layout.addWidget(LockIconSizeWidget(), 0, 1)
         lock_icon_layout.addWidget(LockIconTransparencyWidget(), 1, 1)
         tabs.addTab(lock_icon, '')
+        tabs.addTab(export, '')
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
@@ -420,6 +476,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tabs.setTabText(1, _('&Images && Items'))
         self.tabs.setTabText(2, _('&Tablet Mode'))
         self.tabs.setTabText(3, _('&Lock Icon'))
+        self.tabs.setTabText(4, _('E&xport'))
         self.reset_btn.setText(_('&Restore Defaults'))
 
     def on_restore_defaults(self, *args, **kwargs):

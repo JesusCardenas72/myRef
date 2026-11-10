@@ -17,6 +17,8 @@ from functools import partial
 import logging
 import os
 import os.path
+import shutil
+import sys
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
@@ -37,7 +39,7 @@ from beeref.fileio.errors import IMG_LOADING_ERROR_MSG
 from beeref.fileio.export import exporter_registry, ImagesToDirectoryExporter
 from beeref.i18n import _
 from beeref import widgets
-from beeref.items import BeePixmapItem, BeeTextItem
+from beeref.items import BeePixmapItem, BeeTextItem, items_in_order
 from beeref.main_controls import MainControlsMixin
 from beeref.scene import BeeGraphicsScene
 from beeref.utils import get_file_extension_from_format, qcolor_to_hex
@@ -421,6 +423,65 @@ class BeeGraphicsView(MainControlsMixin,
     def on_action_arrange_square(self):
         self.scene.arrange_square()
 
+    def on_action_normalize_longest_side(self):
+        self.scene.normalize_longest_side()
+
+    def on_action_normalize_scale(self):
+        self.scene.normalize_scale()
+
+    def on_action_arrange_square_addition(self):
+        self.scene.arrange_square(order='addition')
+
+    def on_action_arrange_square_random(self):
+        self.scene.arrange_square(order='random')
+
+    def on_action_align_left(self):
+        self.scene.align('left')
+
+    def on_action_align_right(self):
+        self.scene.align('right')
+
+    def on_action_align_top(self):
+        self.scene.align('top')
+
+    def on_action_align_bottom(self):
+        self.scene.align('bottom')
+
+    def on_action_distribute_horizontal(self):
+        self.scene.distribute()
+
+    def on_action_distribute_vertical(self):
+        self.scene.distribute(vertical=True)
+
+    def on_action_stack(self):
+        self.scene.stack()
+
+    def on_action_duplicate(self):
+        # Offset copies by a fixed distance on screen, regardless of zoom
+        offset = QtCore.QPointF(20, 20) / self.get_scale()
+        self.scene.duplicate_selection(offset)
+
+    ZOOM_STEP = 250  # Corresponds to a zoom factor of 1.25
+
+    def on_action_zoom_in(self):
+        self.zoom(self.ZOOM_STEP, self.viewport().rect().center())
+
+    def on_action_zoom_out(self):
+        self.zoom(-self.ZOOM_STEP, self.viewport().rect().center())
+
+    def on_action_zoom_actual(self):
+        """Zoom to 100%, keeping the view's center."""
+        center = self.mapToScene(self.viewport().rect().center())
+        self.setTransform(QtGui.QTransform())
+        self.scene.on_view_scale_change()
+        self.recalc_scene_rect()
+        self.centerOn(center)
+        self.reset_previous_transform()
+
+    def on_action_center_origin(self):
+        self.centerOn(QtCore.QPointF(0, 0))
+        self.reset_previous_transform()
+
     def on_action_change_opacity(self):
         images = list(filter(
             lambda item: item.is_image,
@@ -434,6 +495,16 @@ class BeeGraphicsView(MainControlsMixin,
         if images:
             self.undo_stack.push(
                 commands.ToggleGrayscale(images, checked))
+
+    def on_action_nearest_neighbor(self, checked):
+        images = [item for item in self.scene.selectedItems(user_only=True)
+                  if item.is_image]
+        if images and any(i.nearest_neighbor != checked for i in images):
+            self.undo_stack.push(
+                commands.ToggleNearestNeighbor(images, checked))
+
+    def on_action_grayscale_canvas(self, checked):
+        self.scene.set_grayscale_canvas(checked)
 
     def on_action_crop(self):
         self.scene.crop_items()
@@ -512,6 +583,30 @@ class BeeGraphicsView(MainControlsMixin,
         if confirm:
             self.open_from_file(filename)
 
+    def on_action_open_last_scene(self):
+        files = self.settings.get_recent_files(existing_only=True)
+        if not files:
+            widgets.BeeNotification(self, _('No recently opened scenes'))
+            return
+        self.on_action_open_recent_file(files[0])
+
+    def on_action_show_in_file_browser(self):
+        if not self.filename:
+            widgets.BeeNotification(
+                self, _('The scene has not been saved yet'))
+            return
+        path = os.path.abspath(self.filename)
+        logger.debug(f'Showing in file browser: {path}')
+        if sys.platform == 'win32':
+            # Opens the folder with the file selected
+            QtCore.QProcess.startDetached(
+                'explorer', ['/select,', os.path.normpath(path)])
+        elif sys.platform == 'darwin':
+            QtCore.QProcess.startDetached('open', ['-R', path])
+        else:
+            QtGui.QDesktopServices.openUrl(
+                QtCore.QUrl.fromLocalFile(os.path.dirname(path)))
+
     def open_from_file(self, filename):
         logger.info(f'Opening file {filename}')
         self.clear_scene()
@@ -584,6 +679,12 @@ class BeeGraphicsView(MainControlsMixin,
             self.do_save(self.filename, create_new=False)
 
     def on_action_export_scene(self):
+        self.do_export_scene()
+
+    def on_action_export_selection_as_scene(self):
+        self.do_export_scene(items=self.scene.selectedItems(user_only=True))
+
+    def do_export_scene(self, items=None):
         directory = os.path.dirname(self.filename) if self.filename else None
         filename, formatstr = QtWidgets.QFileDialog.getSaveFileName(
             parent=self,
@@ -604,10 +705,12 @@ class BeeGraphicsView(MainControlsMixin,
         logger.debug(f'Got export filename {filename}')
 
         exporter_cls = exporter_registry[ext]
-        exporter = exporter_cls(self.scene)
+        exporter = exporter_cls(self.scene, items=items)
         if not exporter.get_user_input(self):
+            self.reselect(items)
             return
         exporter.prepare()
+        self.reselect(items)
 
         self.worker = fileio.ThreadedIO(exporter.export, filename)
         self.worker.finished.connect(self.on_export_finished)
@@ -626,7 +729,19 @@ class BeeGraphicsView(MainControlsMixin,
                 _('<p>Problem writing file {filename}</p><p>{errors}</p>')
                 .format(filename=filename, errors=err_msg))
 
+    def reselect(self, items):
+        """Restore a selection that exporting has cleared."""
+        for item in items or []:
+            item.setSelected(True)
+
     def on_action_export_images(self):
+        self.do_export_images()
+
+    def on_action_export_selected_images(self):
+        self.do_export_images(
+            items=self.scene.selectedItems(user_only=True))
+
+    def do_export_images(self, items=None):
         directory = os.path.dirname(self.filename) if self.filename else None
         directory = QtWidgets.QFileDialog.getExistingDirectory(
             parent=self,
@@ -637,7 +752,16 @@ class BeeGraphicsView(MainControlsMixin,
             return
 
         logger.debug(f'Got export directory {directory}')
-        self.exporter = ImagesToDirectoryExporter(self.scene, directory)
+        scene_name = (os.path.splitext(os.path.basename(self.filename))[0]
+                      if self.filename else '')
+        self.exporter = ImagesToDirectoryExporter(
+            self.scene,
+            directory,
+            items=items,
+            name_template=self.settings.valueOrDefault(
+                'Export/name_template'),
+            export_cropped=self.settings.valueOrDefault('Export/cropped'),
+            scene_name=scene_name)
         self.worker = fileio.ThreadedIO(self.exporter.export)
         self.worker.user_input_required.connect(
             self.on_export_images_file_exists)
@@ -771,6 +895,45 @@ class BeeGraphicsView(MainControlsMixin,
         clipboard.mimeData().setData(
             'beeref/items', QtCore.QByteArray.number(len(items)))
 
+    def on_action_copy_as_file(self):
+        """Copy the selected images as temporary PNG files, for pasting
+        into applications that only accept files (e.g. file browsers)."""
+
+        images = [item for item in self.scene.selectedItems(user_only=True)
+                  if item.is_image]
+        if not images:
+            return
+        directory = os.path.join(
+            QtCore.QStandardPaths.writableLocation(
+                QtCore.QStandardPaths.StandardLocation.TempLocation),
+            f'{constants.APPNAME}-clipboard')
+        shutil.rmtree(directory, ignore_errors=True)
+        os.makedirs(directory, exist_ok=True)
+
+        urls = []
+        used_names = set()
+        for i, item in enumerate(items_in_order(images)):
+            pixmap = item.pixmap()
+            if item.grayscale:
+                pixmap = item.get_grayscale_pixmap()
+            pixmap = pixmap.copy(item.crop.toRect())
+            if item.filename:
+                name = os.path.splitext(os.path.basename(item.filename))[0]
+            else:
+                name = 'image'
+            if name in used_names:
+                name = f'{name}-{i + 1}'
+            used_names.add(name)
+            path = os.path.join(directory, f'{name}.png')
+            pixmap.save(path, 'PNG')
+            urls.append(QtCore.QUrl.fromLocalFile(path))
+        logger.debug(f'Copied as files: {urls}')
+
+        mimedata = QtCore.QMimeData()
+        mimedata.setUrls(urls)
+        clipboard = QtWidgets.QApplication.clipboard()
+        clipboard.setMimeData(mimedata)
+
     def on_action_paste(self):
         self.cancel_active_modes()
         logger.debug('Pasting from clipboard...')
@@ -822,6 +985,8 @@ class BeeGraphicsView(MainControlsMixin,
             item = self.scene.selectedItems(user_only=True)[0]
             grayscale = getattr(item, 'grayscale', False)
             actions.actions['grayscale'].qaction.setChecked(grayscale)
+            nearest = getattr(item, 'nearest_neighbor', False)
+            actions.actions['nearest_neighbor'].qaction.setChecked(nearest)
         self.viewport().repaint()
 
     def on_cursor_changed(self, cursor):
