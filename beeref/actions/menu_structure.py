@@ -163,6 +163,18 @@ menu_structure = [
         'items': [
             'insert_images',
             'insert_text',
+            'draw_mode',
+            {
+                'menu': 'Drawing T&ools',
+                'items': [
+                    'draw_tool_pen',
+                    'draw_tool_line',
+                    'draw_tool_arrow',
+                    'draw_tool_rect',
+                    'draw_tool_ellipse',
+                    'draw_tool_eraser',
+                ],
+            },
         ],
     },
     {
