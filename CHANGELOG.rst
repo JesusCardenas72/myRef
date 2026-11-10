@@ -4,6 +4,23 @@
 Added
 -----
 
+* New Items menu:
+
+  * Groups (Ctrl + G / Ctrl + Shift + G): Drawn as a coloured area
+    behind their items. Clicking an item in a group selects the
+    group; double click to select items inside it. Moving items onto
+    a group puts them into it (can be turned off in the settings).
+    Empty groups are removed.
+  * Parenting (P / Shift + P): Children move, scale and rotate along
+    with their parent.
+  * Lock single items (Alt + L) and unlock all of them (Alt + Shift + L).
+  * Comments on items (Alt + C), shown as tooltip.
+  * Rename items (F2).
+
+* New hierarchy panel (View -> Hierarchy, Ctrl + J): Shows all items
+  as a tree. Drag to reorder and to change parents, double click to
+  rename, click the lock and comment columns to lock or comment.
+  Exporting uses the order of the hierarchy.
 * New View -> Canvas menu:
 
   * Show a grid of lines or dots (Ctrl + '). It gets coarser when

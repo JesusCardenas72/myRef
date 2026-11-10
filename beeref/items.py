@@ -26,6 +26,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
 from beeref import commands
+from beeref import hierarchy
 from beeref.actions.actions import (
     actions, CONTEXT_GLOBAL, CONTEXT_TEXT_EDIT)
 from beeref.config import BeeSettings
@@ -87,13 +88,11 @@ def sort_by_addition(items):
     return sorted(items, key=key)
 
 
-def items_in_order(items):
-    """Order items in the canonical (hierarchy) order.
+def sibling_order(items):
+    """Order items that share the same parent.
 
-    This is the order used wherever the order of items matters but
-    isn't chosen explicitly by the user, e.g. for exporting. Items
-    with a ``sort_order`` come first, ordered by it; the remaining
-    items follow, ordered by ``sort_by_filename``.
+    Items with a ``sort_order`` come first, ordered by it; the
+    remaining items follow, ordered by ``sort_by_filename``.
     """
 
     with_order = []
@@ -108,8 +107,107 @@ def items_in_order(items):
     return with_order + sort_by_filename(without_order)
 
 
+def items_in_order(items):
+    """Order items in the canonical (hierarchy) order.
+
+    This is the order used wherever the order of items matters but
+    isn't chosen explicitly by the user, e.g. for exporting. It's the
+    order of the hierarchy panel: Parents come before their children,
+    siblings are ordered by ``sibling_order``.
+    """
+
+    items = list(items)
+    chains = {}
+    nodes = set()
+    for item in items:
+        chain = list(reversed(hierarchy.ancestors(item))) + [item]
+        chains[item] = chain
+        nodes.update(chain)
+
+    by_parent = defaultdict(list)
+    for node in nodes:
+        by_parent[node.parentItem()].append(node)
+    rank = {}
+    for siblings in by_parent.values():
+        for i, node in enumerate(sibling_order(siblings)):
+            rank[node] = i
+
+    return sorted(items,
+                  key=lambda item: [rank[node] for node in chains[item]])
+
+
 class BeeItemMixin(SelectableMixin):
     """Base for all items added by the user."""
+
+    #: Locked by the user (Alt+L); saved in the bee file
+    locked = False
+    #: The whole scene is locked (View > Lock Images); not saved
+    globally_locked = False
+    #: Comment as HTML
+    comment = ''
+    #: Name given by the user; empty for the default name
+    name = ''
+
+    def default_name(self):
+        return str(self)
+
+    def display_name(self):
+        """The name shown in the hierarchy panel."""
+        return self.name or self.default_name()
+
+    def in_closed_group(self):
+        """Whether one of the item's ancestors is a closed group.
+
+        Children of closed groups can't be selected on their own; a
+        click on them selects the group instead.
+        """
+        return any(isinstance(a, BeeGroupItem) and not a.is_open
+                   for a in hierarchy.ancestors(self))
+
+    def is_interactive(self):
+        """Whether the item can be selected and moved."""
+        return not (self.globally_locked
+                    or self.locked
+                    or self.in_closed_group())
+
+    def update_flags(self):
+        flag = QtWidgets.QGraphicsItem.GraphicsItemFlag
+        interactive = self.is_interactive()
+        self.setFlag(flag.ItemIsSelectable, interactive)
+        self.setFlag(flag.ItemIsMovable, interactive)
+
+    def update_flags_recursive(self):
+        """Update the flags of this item and all its descendants."""
+        for item in [self] + hierarchy.descendants(self):
+            item.update_flags()
+
+    def setParentItem(self, parent):
+        super().setParentItem(parent)
+        self.update_flags_recursive()
+
+    def set_comment(self, comment):
+        """Set the comment (HTML). The comment is shown as tooltip."""
+        self.comment = comment or ''
+        if self.comment:
+            doc = QtGui.QTextDocument()
+            doc.setHtml(self.comment)
+            self.setToolTip(doc.toPlainText())
+        else:
+            self.setToolTip('')
+
+    def copy_with_children(self):
+        """A copy of this item, including copies of its children."""
+
+        copy = self.create_copy()
+        copy.name = self.name
+        copy.set_comment(self.comment)
+        copy.sort_order = getattr(self, 'sort_order', None)
+        for child in hierarchy.user_children(self):
+            child_copy = child.copy_with_children()
+            child_copy.setParentItem(copy)
+        if hasattr(copy, 'fit_to_children'):
+            copy.fit_to_children()
+        return copy
 
     def set_pos_center(self, pos):
         """Sets the position using the item's center as the origin point."""
@@ -130,11 +228,18 @@ class BeeItemMixin(SelectableMixin):
         return [self]
 
     def set_locked(self, locked):
-        """Locked items can neither be selected nor moved."""
+        """Lock or unlock the item as part of locking the whole
+        scene. Locked items can neither be selected nor moved."""
 
-        flag = QtWidgets.QGraphicsItem.GraphicsItemFlag
-        self.setFlag(flag.ItemIsSelectable, not locked)
-        self.setFlag(flag.ItemIsMovable, not locked)
+        self.globally_locked = locked
+        self.update_flags()
+
+    def set_item_locked(self, locked):
+        """Lock or unlock this item on its own (saved in the bee
+        file)."""
+
+        self.locked = locked
+        self.update_flags()
 
     def on_selected_change(self, value):
         if (value and self.scene()
@@ -164,12 +269,21 @@ class BeeItemMixin(SelectableMixin):
         self.pending_parent_id = kwargs.get('parent_id')
         data = kwargs.get('data') or {}
         self.added_at = data.get('added_at', getattr(self, 'added_at', None))
+        self.name = data.get('name', self.name)
+        self.set_comment(data.get('comment', self.comment))
+        self.set_item_locked(data.get('locked', self.locked))
 
     def get_common_save_data(self):
         """Data common to all item types to be stored in the bee file."""
         data = {}
         if getattr(self, 'added_at', None) is not None:
             data['added_at'] = self.added_at
+        if self.name:
+            data['name'] = self.name
+        if self.comment:
+            data['comment'] = self.comment
+        if self.locked:
+            data['locked'] = True
         return data
 
 
@@ -208,6 +322,11 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
     def __str__(self):
         size = self.pixmap().size()
         return (f'Image "{self.filename}" {size.width()} x {size.height()}')
+
+    def default_name(self):
+        if self.filename:
+            return os.path.basename(self.filename)
+        return _('Image')
 
     @property
     def crop(self):
@@ -752,6 +871,10 @@ class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         txt = self.toPlainText()[:40]
         return (f'Text "{txt}"')
 
+    def default_name(self):
+        lines = self.toPlainText().strip().splitlines()
+        return lines[0][:40] if lines else _('Text')
+
     def get_extra_save_data(self):
         return {'text': self.toPlainText()}
 
@@ -900,3 +1023,108 @@ class BeeErrorItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
 
     def copy_to_clipboard(self, clipboard):
         clipboard.setText(self.toPlainText())
+
+
+@register_item
+class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
+    """A group of items, drawn as a coloured area behind its children.
+
+    Groups are closed by default: Clicking on a child selects the whole
+    group. Double clicking opens the group so that its children can be
+    selected on their own. The group closes again when nothing inside
+    it is selected anymore.
+    """
+
+    TYPE = 'group'
+    PADDING = 10
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.save_id = None
+        self.is_image = False
+        self.is_open = False
+        self.color = None
+        self._rect = QtCore.QRectF()
+        self.init_selectable()
+        logger.debug(f'Initialized {self}')
+
+    @classmethod
+    def create_from_data(cls, **kwargs):
+        data = kwargs.get('data') or {}
+        item = cls()
+        item.color = data.get('color')
+        return item
+
+    def __str__(self):
+        return f'Group "{self.name}"'
+
+    def default_name(self):
+        return _('Group')
+
+    def get_extra_save_data(self):
+        return {'color': self.color} if self.color else {}
+
+    def background_color(self):
+        if self.color:
+            return QtGui.QColor(self.color)
+        return QtGui.QColor(*COLORS['Scene:Group'])
+
+    def bounding_rect_unselected(self):
+        return QtCore.QRectF(self._rect)
+
+    def children_rect(self):
+        """The area of all children plus padding, in item coordinates."""
+
+        rect = QtCore.QRectF()
+        for child in hierarchy.user_children(self):
+            rect = rect.united(
+                child.mapRectToParent(child.bounding_rect_unselected()))
+        if rect.isNull():
+            return rect
+        return rect.adjusted(
+            -self.PADDING, -self.PADDING, self.PADDING, self.PADDING)
+
+    def fit_to_children(self):
+        """Adjust the group's area to its children."""
+
+        rect = self.children_rect()
+        if rect != self._rect:
+            self.prepareGeometryChange()
+            self._rect = rect
+
+    def set_open(self, value):
+        """Open or close the group (see class docstring)."""
+
+        if value == self.is_open:
+            return
+        logger.debug(f'Setting {self} open: {value}')
+        self.is_open = value
+        for item in hierarchy.descendants(self):
+            item.update_flags()
+        self.update()
+
+    def paint(self, painter, option, widget):
+        painter.fillRect(self._rect, self.background_color())
+        if self.is_open:
+            pen = QtGui.QPen(QtGui.QColor(*COLORS['Scene:Selection']))
+            pen.setCosmetic(True)
+            pen.setStyle(Qt.PenStyle.DashLine)
+            painter.setPen(pen)
+            painter.setBrush(QtGui.QBrush())
+            painter.drawRect(self._rect)
+        self.paint_selectable(painter, option, widget)
+
+    def create_copy(self):
+        item = BeeGroupItem()
+        item.color = self.color
+        item.setPos(self.pos())
+        item.setZValue(self.zValue())
+        item.setScale(self.scale())
+        item.setRotation(self.rotation())
+        if self.flip() == -1:
+            item.do_flip()
+        item._rect = QtCore.QRectF(self._rect)
+        return item
+
+    def copy_to_clipboard(self, clipboard):
+        clipboard.setText(self.display_name())

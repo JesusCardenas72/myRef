@@ -29,7 +29,7 @@ Cada feature nueva se considera terminada solo si incluye:
 
 ## Fase 0 · Preparación y refactors habilitantes ✅ (rama `fase-0`)
 
-> Hecha: 0.1–0.7. Pendiente de decidir antes de la Fase 4: el identificador del formato `.bee` v3 (ver "Decisiones pendientes", punto 4).
+> Hecha: 0.1–0.7. El formato `.bee` v3 conserva extensión e identificador (decidido en la fase 4).
 
 | # | Tarea | Esfuerzo | Detalle |
 |---|---|---|---|
@@ -144,7 +144,26 @@ Código en `__main__.py` (`BeeRefMainWindow`) y `view.py`.
 
 ---
 
-## Fase 4 · Modelo de escena: grupos, jerarquía, bloqueo y comentarios
+## Fase 4 · Modelo de escena: grupos, jerarquía, bloqueo y comentarios ✅ (rama `fase-4`)
+
+> Hecha. Decisiones tomadas: el formato sigue siendo `.bee` con el
+> mismo `APPLICATION_ID` (los archivos de BeeRef se abren sin
+> cambios); queda documentado que BeeRef original perdería grupos e
+> hijos al guardar un archivo de myRef. `BeeGroupItem` es un
+> `QGraphicsItem` propio (no `QGraphicsItemGroup`): sus hijos dejan de
+> ser seleccionables mientras está cerrado, así el clic pasa al grupo;
+> el doble clic lo abre y se cierra solo al dejar de haber algo suyo
+> seleccionado. Reemparentar conserva la transformación en escena
+> (`hierarchy.set_parent_keep_transform`). "Emparentar con el primero
+> seleccionado" usa el orden en que se seleccionaron los items. El
+> orden de la jerarquía (`sort_order` entre hermanos, padres antes que
+> hijos) es independiente del orden z. El panel es un `QTreeWidget` que
+> se reconstruye desde la escena cuando cambia la estructura. El
+> comentario usa por ahora un `QTextEdit` simple (el editor rico llega
+> en la fase 5) y se muestra como tooltip. Bloquear (Alt+L) y
+> desbloquear todo (Alt+Shift+L) se pueden deshacer; el candado global
+> sigue aparte. Arrastrar a grupos se desactiva en Ajustes > Imágenes
+> y elementos.
 
 Es **la fase de mayor riesgo**: introduce relaciones padre-hijo en un código que asume que todos los items son de nivel superior.
 
@@ -318,4 +337,4 @@ Total aproximado: **6–9 meses** para una persona a tiempo completo. Las fases 
 1. **Atajos:** ¿mantener los de BeeRef y añadir un preset "PureRef", o adoptar directamente los de PureRef?
 2. **Atajos globales:** ¿aceptar la dependencia `pynput` (portable) o implementarlos de forma nativa solo en Windows?
 3. **Plataformas objetivo:** si solo importa Windows, las fases 2, 9 y 11 se simplifican mucho.
-4. **Formato:** BeeRef original **sí abre** un `.bee` v3 (`_migrate` acepta versiones mayores sin error), pero lo hace mal: carga solo imágenes y textos, coloca a los hijos en coordenadas locales (posición errónea) e ignora grupos y dibujos. Además, **al guardar borraría** esos items (`write_data` elimina todo lo que no esté en la escena). Opciones: cambiar `APPLICATION_ID` o la extensión (p. ej. `.myref`) para que BeeRef los rechace, o aceptar el riesgo y documentarlo.
+4. **Formato** (decidido en la fase 4: se mantiene `.bee` y el `APPLICATION_ID`, aceptando y documentando el riesgo)**:** BeeRef original **sí abre** un `.bee` v3 (`_migrate` acepta versiones mayores sin error), pero lo hace mal: carga solo imágenes y textos, coloca a los hijos en coordenadas locales (posición errónea) e ignora grupos y dibujos. Además, **al guardar borraría** esos items (`write_data` elimina todo lo que no esté en la escena). Opciones: cambiar `APPLICATION_ID` o la extensión (p. ej. `.myref`) para que BeeRef los rechace, o aceptar el riesgo y documentarlo.
