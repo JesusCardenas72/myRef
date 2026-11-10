@@ -20,6 +20,7 @@ text).
 from collections import defaultdict
 from functools import cached_property
 import logging
+import math
 import os.path
 
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -27,6 +28,7 @@ from PyQt6.QtCore import Qt
 
 from beeref import commands
 from beeref import hierarchy
+from beeref import textformat
 from beeref.actions.actions import (
     actions, CONTEXT_GLOBAL, CONTEXT_TEXT_EDIT)
 from beeref.config import BeeSettings
@@ -847,18 +849,38 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
 
 @register_item
 class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
-    """Class for text added by the user."""
+    """Class for text notes added by the user.
+
+    Notes contain rich text, which is stored as HTML. Notes either
+    grow with their text, or have a fixed width with word wrap
+    (``text_width``).
+    """
 
     TYPE = 'text'
+    #: Width of the area at the right edge for changing the text width,
+    #: in pixels on screen
+    WIDTH_HANDLE_SIZE = 8
+    MIN_TEXT_WIDTH = 20
 
-    def __init__(self, text=None, **kwargs):
-        super().__init__(text or _('Text'))
+    def __init__(self, text=None, html=None, text_width=None,
+                 background=None, **kwargs):
+        super().__init__()
+        if html:
+            self.setHtml(html)
+        else:
+            self.setPlainText(text or _('Text'))
+        if text_width and text_width > 0:
+            self.setTextWidth(text_width)
+        #: Background color as hex ARGB, or None for the default
+        self.background = background
         self.save_id = None
         logger.debug(f'Initialized {self}')
         self.is_image = False
         self.init_selectable()
         self.is_editable = True
         self.edit_mode = False
+        self.width_drag_start = None
+        self.setAcceptHoverEvents(True)
         self.setDefaultTextColor(QtGui.QColor(*COLORS['Scene:Text']))
 
     @classmethod
@@ -876,24 +898,77 @@ class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         return lines[0][:40] if lines else _('Text')
 
     def get_extra_save_data(self):
-        return {'text': self.toPlainText()}
+        # The plain text is kept for older versions:
+        data = {'text': self.toPlainText(), 'html': self.html()}
+        if self.has_fixed_width():
+            data['text_width'] = self.textWidth()
+        if self.background:
+            data['background'] = self.background
+        return data
+
+    def html(self):
+        return self.toHtml()
+
+    def has_fixed_width(self):
+        return self.textWidth() > 0
+
+    def set_text_width(self, width):
+        """Fixed text width with word wrap; None or a negative value
+        for a width that grows with the text."""
+
+        self.prepareGeometryChange()
+        self.setTextWidth(-1 if width is None or width <= 0 else width)
+        self.update()
+
+    def text_state(self):
+        return (self.html(), self.textWidth())
+
+    def set_text_state(self, html, width):
+        self.prepareGeometryChange()
+        self.setHtml(html)
+        self.setTextWidth(width)
+        self.update()
+
+    def default_background_color(self):
+        color = QtGui.QColor(0, 0, 0)
+        color.setAlpha(40)
+        return color
+
+    def background_color(self):
+        if self.background:
+            color = QtGui.QColor(self.background)
+            if color.isValid():
+                return color
+        return self.default_background_color()
+
+    def set_background(self, background):
+        self.background = background
+        self.update()
 
     def contains(self, point):
         return self.boundingRect().contains(point)
 
     def paint(self, painter, option, widget):
         painter.setPen(Qt.PenStyle.NoPen)
-        color = QtGui.QColor(0, 0, 0)
-        color.setAlpha(40)
-        brush = QtGui.QBrush(color)
-        painter.setBrush(brush)
-        painter.drawRect(QtWidgets.QGraphicsTextItem.boundingRect(self))
+        painter.setBrush(QtGui.QBrush(self.background_color()))
+        rect = QtWidgets.QGraphicsTextItem.boundingRect(self)
+        painter.drawRect(rect)
         option.state = QtWidgets.QStyle.StateFlag.State_Enabled
         super().paint(painter, option, widget)
+        if self.edit_mode:
+            # Grip for changing the text width:
+            pen = QtGui.QPen(QtGui.QColor(*COLORS['Scene:Selection']))
+            pen.setCosmetic(True)
+            pen.setWidth(2)
+            painter.setPen(pen)
+            painter.drawLine(QtCore.QLineF(rect.topRight(),
+                                           rect.bottomRight()))
         self.paint_selectable(painter, option, widget)
 
     def create_copy(self):
-        item = BeeTextItem(self.toPlainText())
+        item = BeeTextItem(html=self.html(), background=self.background)
+        if self.has_fixed_width():
+            item.setTextWidth(self.textWidth())
         item.setPos(self.pos())
         item.setZValue(self.zValue())
         item.setScale(self.scale())
@@ -902,32 +977,46 @@ class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
             item.do_flip()
         return item
 
+    def notify_view_edit_mode(self):
+        scene = self.scene()
+        views = scene.views() if scene else []
+        if views and hasattr(views[0], 'on_text_edit_mode_changed'):
+            views[0].on_text_edit_mode_changed()
+
     def enter_edit_mode(self):
         logger.debug(f'Entering edit mode on {self}')
         self.edit_mode = True
-        self.old_text = self.toPlainText()
+        self.old_text = self.html()
+        self.old_width = self.textWidth()
         self.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextEditorInteraction)
         self.scene().edit_item = self
         actions.set_context(CONTEXT_TEXT_EDIT)
+        self.update()
+        self.notify_view_edit_mode()
 
     def exit_edit_mode(self, commit=True):
         logger.debug(f'Exiting edit mode on {self}')
         self.edit_mode = False
+        self.width_drag_start = None
         # reset selection:
         self.setTextCursor(QtGui.QTextCursor(self.document()))
         self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.scene().edit_item = None
         actions.set_context(CONTEXT_GLOBAL)
+        old_width = getattr(self, 'old_width', self.textWidth())
         if commit:
             self.scene().undo_stack.push(
-                commands.ChangeText(self, self.toPlainText(), self.old_text))
+                commands.ChangeText(self, self.html(), self.old_text,
+                                    self.textWidth(), old_width))
             if not self.toPlainText().strip():
                 logger.debug('Removing empty text item')
                 self.scene().undo_stack.push(
                     commands.DeleteItems(self.scene(), [self]))
         else:
-            self.setPlainText(self.old_text)
+            self.set_text_state(self.old_text, old_width)
+        self.update()
+        self.notify_view_edit_mode()
 
     def has_selection_handles(self):
         return super().has_selection_handles() and not self.edit_mode
@@ -938,15 +1027,96 @@ class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
             self.exit_edit_mode()
             event.accept()
             return
+        if (event.key() in (Qt.Key.Key_Enter, Qt.Key.Key_Return)
+                and event.modifiers() == Qt.KeyboardModifier.ShiftModifier):
+            # A new paragraph (and list item), not just a line break:
+            cursor = self.textCursor()
+            cursor.insertBlock()
+            self.setTextCursor(cursor)
+            event.accept()
+            return
         if (event.key() == Qt.Key.Key_Escape
                 and event.modifiers() == Qt.KeyboardModifier.NoModifier):
             self.exit_edit_mode(commit=False)
             event.accept()
             return
+        if (event.key() in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab)
+                and self.textCursor().currentList()):
+            delta = -1 if event.key() == Qt.Key.Key_Backtab else 1
+            cursor = self.textCursor()
+            textformat.indent(delta)(cursor)
+            self.setTextCursor(cursor)
+            event.accept()
+            return
         super().keyPressEvent(event)
 
+    def anchor_at(self, pos):
+        """The link target at the given position in item coordinates."""
+
+        return textformat.anchor_at(self.document(), pos)
+
+    def screen_scale(self):
+        """How many screen pixels one unit of this item covers."""
+
+        scene = self.scene()
+        if not scene or not scene.views():
+            return 1
+        view = scene.views()[0]
+        transform = self.deviceTransform(view.viewportTransform())
+        return max(math.hypot(transform.m11(), transform.m12()), 0.0001)
+
+    def is_on_width_handle(self, pos):
+        rect = QtWidgets.QGraphicsTextItem.boundingRect(self)
+        margin = self.WIDTH_HANDLE_SIZE / self.screen_scale()
+        return (self.edit_mode
+                and rect.right() - margin <= pos.x() <= rect.right() + margin
+                and rect.top() <= pos.y() <= rect.bottom())
+
+    def hoverMoveEvent(self, event):
+        if self.is_on_width_handle(event.pos()):
+            self.setCursor(Qt.CursorShape.SizeHorCursor)
+        elif self.edit_mode:
+            self.setCursor(Qt.CursorShape.IBeamCursor)
+        else:
+            self.unsetCursor()
+        super().hoverMoveEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        self.unsetCursor()
+        super().hoverLeaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if self.edit_mode and event.button() == Qt.MouseButton.LeftButton:
+            if self.is_on_width_handle(event.pos()):
+                self.width_drag_start = event.pos()
+                event.accept()
+                return
+            block = textformat.checkbox_at(self.document(), event.pos())
+            if block is not None:
+                textformat.toggle_checkbox(block)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self.width_drag_start is not None:
+            self.set_text_width(max(self.MIN_TEXT_WIDTH, event.pos().x()))
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self.width_drag_start is not None:
+            self.width_drag_start = None
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
     def copy_to_clipboard(self, clipboard):
-        clipboard.setText(self.toPlainText())
+        mimedata = QtCore.QMimeData()
+        mimedata.setText(self.toPlainText())
+        mimedata.setHtml(self.html())
+        clipboard.setMimeData(mimedata)
 
 
 @register_item

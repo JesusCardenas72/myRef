@@ -393,18 +393,47 @@ class CropItem(QtGui.QUndoCommand):
 
 
 class ChangeText(QtGui.QUndoCommand):
+    """Change the (HTML) text of a note, and optionally its text
+    width."""
 
-    def __init__(self, item, new_text, old_text):
+    def __init__(self, item, new_text, old_text,
+                 new_width=None, old_width=None):
         super().__init__('Change text')
         self.item = item
         self.new_text = new_text
         self.old_text = old_text
+        self.new_width = new_width
+        self.old_width = old_width
+
+    def _apply(self, text, width):
+        if width is None:
+            self.item.setHtml(text)
+        else:
+            self.item.set_text_state(text, width)
 
     def redo(self):
-        self.item.setPlainText(self.new_text)
+        self._apply(self.new_text, self.new_width)
 
     def undo(self):
-        self.item.setPlainText(self.old_text)
+        self._apply(self.old_text, self.old_width)
+
+
+class ChangeNoteBackground(QtGui.QUndoCommand):
+    """Change the background color of text notes."""
+
+    def __init__(self, items, background):
+        super().__init__('Change note background')
+        self.items = items
+        self.background = background
+        self.old = [item.background for item in items]
+
+    def redo(self):
+        for item in self.items:
+            item.set_background(self.background)
+
+    def undo(self):
+        for item, old in zip(self.items, self.old):
+            item.set_background(old)
 
 
 class ChangeOpacity(QtGui.QUndoCommand):

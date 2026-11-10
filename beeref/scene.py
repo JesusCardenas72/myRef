@@ -775,6 +775,14 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                     toggle_item=item_at_pos)
             return
 
+        if (event.button() == Qt.MouseButton.LeftButton
+                and event.modifiers() == Qt.KeyboardModifier.ControlModifier):
+            url = self.link_at(event.scenePos())
+            if url:
+                self.views()[0].open_link(url)
+                event.accept()
+                return
+
         if event.button() == Qt.MouseButton.LeftButton:
             self.event_start = event.scenePos()
             self.last_move_delta = None
@@ -849,6 +857,17 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             self.snap_guides = guides
             for view in self.views():
                 view.viewport().update()
+
+    def link_at(self, pos):
+        """The link target in a text note at the given scene position."""
+
+        for item in self.items(pos):
+            if hasattr(item, 'anchor_at') and item.isVisible():
+                url = item.anchor_at(item.mapFromScene(pos))
+                if url:
+                    return url
+                return None
+        return None
 
     def mouseDoubleClickEvent(self, event):
         self.cancel_active_modes()

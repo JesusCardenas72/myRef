@@ -181,7 +181,30 @@ Es **la fase de mayor riesgo**: introduce relaciones padre-hijo en un código qu
 
 ---
 
-## Fase 5 · Notas de texto enriquecido
+## Fase 5 · Notas de texto enriquecido ✅ (rama `fase-5`)
+
+> Hecha. Decisiones tomadas: se guardan `data.html` y también
+> `data.text` (texto plano) para que BeeRef original y versiones
+> anteriores sigan mostrando el texto; `text_width` y `background` son
+> opcionales. Nuevo menú **Texto** (acciones de formato en el contexto
+> `text_edit` para que Ctrl+B/I/U… no choquen con atajos globales como
+> Ctrl+I); copiar/pegar/limpiar formato y ancho fijo son globales.
+> Fuera del modo edición, el formato se aplica a todo el texto de todas
+> las notas seleccionadas (incluidas las de grupos seleccionados), en un
+> único paso de deshacer; en modo edición se aplica a la selección y se
+> confirma al salir junto con el texto y el ancho. La barra flotante solo
+> aparece en modo edición. Los enlaces se abren con **Ctrl+clic** (un
+> clic normal sigue seleccionando y moviendo la nota); los `.bee`
+> se abren en la app con la confirmación de cambios sin guardar. Las
+> casillas se marcan con clic en modo edición. **Mayús+Intro** crea un
+> párrafo nuevo (antes, un salto de línea) para que las listas
+> funcionen; Tab/Mayús+Tab cambian la sangría en listas. El ancho fijo
+> se cambia arrastrando el borde derecho en modo edición o con
+> Texto → Ancho fijo. Al pegar desde fuera se sigue pegando texto plano
+> como nota nueva (el HTML de navegadores trae estilos que chocan con el
+> lienzo); dentro de una nota, Ctrl+V pega con formato y Ctrl+Mayús+V
+> sin él. La exportación SVG sigue usando texto plano; la exportación
+> a imagen conserva el formato. Los comentarios usan la misma barra.
 
 `BeeTextItem` (`items.py:645`) hoy guarda `toPlainText()`.
 

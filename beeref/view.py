@@ -39,6 +39,8 @@ from beeref import fileio
 from beeref.fileio.errors import IMG_LOADING_ERROR_MSG
 from beeref.fileio.export import exporter_registry, ImagesToDirectoryExporter
 from beeref.i18n import _
+from beeref import hierarchy
+from beeref import textformat
 from beeref import widgets
 from beeref.items import (
     BeePixmapItem, BeeTextItem, BeeGroupItem, items_in_order)
@@ -90,6 +92,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.right_gesture_start = None
         self.right_gesture_moved = False
         self.hierarchy_dock = None
+        self.text_toolbar = None
 
         self.scene = BeeGraphicsScene(self.undo_stack)
         self.scene.changed.connect(self.on_scene_changed)
@@ -103,6 +106,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.init_window_mode_state()
         self.init_canvas_state()
         self.build_menu_and_actions()
+        self.update_text_actions()
         self.lock_button.clicked.connect(
             actions.actions['lock_items'].qaction.setChecked)
         self.control_target = self
@@ -167,6 +171,8 @@ class BeeGraphicsView(MainControlsMixin,
         self.retranslate_menu_and_actions()
         if self.hierarchy_dock:
             self.hierarchy_dock.retranslate()
+        if self.text_toolbar:
+            self.text_toolbar.retranslate()
         self.welcome_overlay.retranslate()
         self.update_window_title()
 
@@ -617,6 +623,235 @@ class BeeGraphicsView(MainControlsMixin,
     def on_hierarchy_closed(self):
         self.set_checked_silently('show_hierarchy', False)
 
+    # Text formatting
+
+    def selected_text_items(self):
+        """The text notes formatting applies to when not editing: All
+        selected notes, including the ones inside selected groups."""
+
+        result = []
+        for item in self.scene.selected_top_items():
+            for candidate in [item] + hierarchy.descendants(item):
+                if (isinstance(candidate, BeeTextItem)
+                        and candidate not in result):
+                    result.append(candidate)
+        return result
+
+    def text_format_cursor(self):
+        """The cursor the current formatting is read from."""
+
+        item = self.scene.edit_item
+        if item is not None:
+            return item.textCursor()
+        items = self.selected_text_items()
+        if items:
+            cursor = QtGui.QTextCursor(items[0].document())
+            cursor.select(QtGui.QTextCursor.SelectionType.Document)
+            return cursor
+        return None
+
+    def text_reference_format(self):
+        cursor = self.text_format_cursor()
+        if cursor is None:
+            return None
+        return textformat.reference_format(cursor)
+
+    def refocus_edit_item(self):
+        item = self.scene.edit_item
+        if item is not None:
+            self.setFocus()
+            item.setFocus()
+
+    def apply_text_format(self, operation, text='Format text'):
+        """Apply a formatting operation (see beeref.textformat) to the
+        note being edited, or to all selected notes."""
+
+        item = self.scene.edit_item
+        if item is not None:
+            # Gets committed to the undo stack when leaving edit mode
+            cursor = item.textCursor()
+            operation(cursor)
+            item.setTextCursor(cursor)
+            self.refocus_edit_item()
+            return
+        items = self.selected_text_items()
+        if not items:
+            return
+        self.undo_stack.beginMacro(text)
+        for item in items:
+            old = item.html()
+            cursor = QtGui.QTextCursor(item.document())
+            cursor.select(QtGui.QTextCursor.SelectionType.Document)
+            operation(cursor)
+            new = item.html()
+            if new != old:
+                self.undo_stack.push(commands.ChangeText(item, new, old))
+        self.undo_stack.endMacro()
+
+    def apply_toggle(self, factory):
+        ref = self.text_reference_format()
+        if ref is not None:
+            self.apply_text_format(factory(ref))
+
+    def ask_color(self, title, initial):
+        color = QtWidgets.QColorDialog.getColor(
+            initial, self, title,
+            QtWidgets.QColorDialog.ColorDialogOption.ShowAlphaChannel)
+        self.refocus_edit_item()
+        return color
+
+    def ask_link(self):
+        item = self.scene.edit_item
+        current = ''
+        if item is not None:
+            current = item.textCursor().charFormat().anchorHref()
+        url, ok = QtWidgets.QInputDialog.getText(
+            self, _('Insert Link'), _('URL:'), text=current)
+        self.refocus_edit_item()
+        return url if ok else None
+
+    def update_text_actions(self):
+        self.actiongroup_set_enabled(
+            'active_when_text_selected',
+            self.scene.edit_item is not None
+            or bool(self.selected_text_items()))
+
+    def on_text_edit_mode_changed(self):
+        self.update_text_actions()
+        if self.scene.edit_item is not None:
+            if self.text_toolbar is None:
+                self.text_toolbar = widgets.textformat.NoteFormatToolbar(self)
+            self.text_toolbar.show_for_item()
+        elif self.text_toolbar is not None:
+            self.text_toolbar.hide_toolbar()
+
+    def on_action_text_bold(self):
+        self.apply_toggle(textformat.bold)
+
+    def on_action_text_italic(self):
+        self.apply_toggle(textformat.italic)
+
+    def on_action_text_underline(self):
+        self.apply_toggle(textformat.underline)
+
+    def on_action_text_strikeout(self):
+        self.apply_toggle(textformat.strikeout)
+
+    def on_action_text_color(self):
+        ref = self.text_reference_format()
+        if ref is None:
+            return
+        color = self.ask_color(_('Text Color'), ref.foreground().color())
+        if color.isValid():
+            self.apply_text_format(textformat.foreground(color))
+
+    def on_action_text_highlight(self):
+        ref = self.text_reference_format()
+        if ref is None:
+            return
+        color = self.ask_color(_('Highlight Color'),
+                               ref.background().color())
+        if color.isValid():
+            self.apply_text_format(textformat.highlight(color))
+
+    def on_action_note_background(self):
+        item = self.scene.edit_item
+        items = [item] if item is not None else self.selected_text_items()
+        if not items:
+            return
+        color = self.ask_color(_('Note Background'),
+                               items[0].background_color())
+        if color.isValid():
+            self.undo_stack.push(commands.ChangeNoteBackground(
+                items, color.name(QtGui.QColor.NameFormat.HexArgb)))
+
+    def on_action_text_align_left(self):
+        self.apply_text_format(textformat.align(Qt.AlignmentFlag.AlignLeft))
+
+    def on_action_text_align_center(self):
+        self.apply_text_format(
+            textformat.align(Qt.AlignmentFlag.AlignHCenter))
+
+    def on_action_text_align_right(self):
+        self.apply_text_format(textformat.align(Qt.AlignmentFlag.AlignRight))
+
+    def on_action_text_bullet_list(self):
+        self.apply_text_format(textformat.bullet_list())
+
+    def on_action_text_numbered_list(self):
+        self.apply_text_format(textformat.numbered_list())
+
+    def on_action_text_checklist(self):
+        self.apply_text_format(textformat.checklist())
+
+    def on_action_text_indent(self):
+        self.apply_text_format(textformat.indent(1))
+
+    def on_action_text_dedent(self):
+        self.apply_text_format(textformat.indent(-1))
+
+    def on_action_text_link(self):
+        url = self.ask_link()
+        if url:
+            self.apply_text_format(textformat.link(url))
+
+    def on_action_text_paste_plain(self):
+        item = self.scene.edit_item
+        if item is None:
+            return
+        text = QtWidgets.QApplication.clipboard().text()
+        if text:
+            cursor = item.textCursor()
+            cursor.insertText(text)
+            item.setTextCursor(cursor)
+
+    def on_action_text_copy_format(self):
+        cursor = self.text_format_cursor()
+        if cursor is not None:
+            textformat.copy_format(cursor)
+
+    def on_action_text_paste_format(self):
+        if textformat.copied_format is not None:
+            self.apply_text_format(textformat.paste_format())
+
+    def on_action_text_clear_format(self):
+        self.apply_text_format(textformat.clear_format())
+
+    def on_action_text_fixed_width(self):
+        item = self.scene.edit_item
+        items = [item] if item is not None else self.selected_text_items()
+        if not items:
+            return
+        fixed = not items[0].has_fixed_width()
+        if item is not None:
+            # Gets committed to the undo stack when leaving edit mode
+            item.set_text_width(
+                QtWidgets.QGraphicsTextItem.boundingRect(item).width()
+                if fixed else None)
+            self.refocus_edit_item()
+            return
+        self.undo_stack.beginMacro('Change text width')
+        for note in items:
+            width = (QtWidgets.QGraphicsTextItem.boundingRect(note).width()
+                     if fixed else -1)
+            self.undo_stack.push(commands.ChangeText(
+                note, note.html(), note.html(), width, note.textWidth()))
+        self.undo_stack.endMacro()
+
+    def open_link(self, url):
+        """Open a link from a text note. Links to bee files are opened
+        in BeeRef."""
+
+        qurl = QtCore.QUrl(url)
+        if qurl.isRelative():
+            qurl = QtCore.QUrl.fromUserInput(url)
+        if qurl.isLocalFile() and qurl.toLocalFile().lower().endswith(
+                '.bee'):
+            self.on_action_open_recent_file(qurl.toLocalFile())
+            return
+        logger.info(f'Opening link: {qurl.toString()}')
+        QtGui.QDesktopServices.openUrl(qurl)
+
     def on_action_crop(self):
         self.scene.crop_items()
 
@@ -982,10 +1217,21 @@ class BeeGraphicsView(MainControlsMixin,
 
     def on_action_insert_text(self):
         self.cancel_active_modes()
+        # A note created while an image is selected gets attached to it:
+        images = [i for i in self.scene.selection_history
+                  if i.isSelected() and getattr(i, 'is_image', False)
+                  and i.scene() is self.scene]
         item = BeeTextItem()
         pos = self.mapToScene(self.mapFromGlobal(self.cursor().pos()))
         item.setScale(1 / self.get_scale())
+        if not images:
+            self.undo_stack.push(
+                commands.InsertItems(self.scene, [item], pos))
+            return
+        self.undo_stack.beginMacro('Insert text')
         self.undo_stack.push(commands.InsertItems(self.scene, [item], pos))
+        self.scene.move_in_hierarchy([item], images[0], text='Insert text')
+        self.undo_stack.endMacro()
 
     def on_action_copy(self):
         logger.debug('Copying to clipboard...')
@@ -1091,6 +1337,7 @@ class BeeGraphicsView(MainControlsMixin,
                                      self.scene.has_selection())
         self.actiongroup_set_enabled('active_when_single_image',
                                      self.scene.has_single_image_selection())
+        self.update_text_actions()
 
         if self.scene.has_selection():
             item = self.scene.selectedItems(user_only=True)[0]
