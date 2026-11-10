@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os.path
 from pathlib import Path
 import shutil
@@ -898,28 +899,34 @@ def test_on_action_sample_color_when_multi_selection(view, item):
                                 .assert_called_once_with()
 
 
-@patch('PyQt6.QtWidgets.QWidget.create')
-@patch('PyQt6.QtWidgets.QWidget.destroy')
-@patch('PyQt6.QtWidgets.QWidget.show')
-def test_on_action_always_on_top_checked(
-        show_mock, destroy_mock, create_mock, view):
-    view.on_action_always_on_top(True)
+@contextmanager
+def patch_window_recreation(view):
+    """Patch the main window's own methods: QMainWindow defines
+    create/destroy itself, and notifications call QWidget.show, too."""
+
+    parent = view.parent
+    with patch.object(parent, 'show') as show:
+        with patch.object(parent, 'destroy') as destroy:
+            with patch.object(parent, 'create') as create:
+                yield show, destroy, create
+
+
+def test_on_action_always_on_top_checked(view):
+    with patch_window_recreation(view) as (show, destroy, create):
+        view.on_action_always_on_top(True)
     assert view.parent.windowFlags() & Qt.WindowType.WindowStaysOnTopHint
-    show_mock.assert_called_once()
-    destroy_mock.assert_called_once()
-    create_mock.assert_called_once()
+    show.assert_called_once_with()
+    destroy.assert_called_once_with()
+    create.assert_called_once_with()
 
 
-@patch('PyQt6.QtWidgets.QWidget.create')
-@patch('PyQt6.QtWidgets.QWidget.destroy')
-@patch('PyQt6.QtWidgets.QWidget.show')
-def test_on_action_always_on_top_unchecked(
-        show_mock, destroy_mock, create_mock, view):
-    view.on_action_always_on_top(False)
+def test_on_action_always_on_top_unchecked(view):
+    with patch_window_recreation(view) as (show, destroy, create):
+        view.on_action_always_on_top(False)
     assert not (view.parent.windowFlags() & Qt.WindowType.WindowStaysOnTopHint)
-    show_mock.assert_called_once()
-    destroy_mock.assert_called_once()
-    create_mock.assert_called_once()
+    show.assert_called_once_with()
+    destroy.assert_called_once_with()
+    create.assert_called_once_with()
 
 
 def test_on_action_show_menubar(view):
@@ -930,28 +937,22 @@ def test_on_action_show_menubar(view):
     assert view.parent.menuBar().actions() == []
 
 
-@patch('PyQt6.QtWidgets.QWidget.create')
-@patch('PyQt6.QtWidgets.QWidget.destroy')
-@patch('PyQt6.QtWidgets.QWidget.show')
-def test_on_action_show_titlebar_checked(
-        show_mock, destroy_mock, create_mock, view):
-    view.on_action_show_titlebar(True)
+def test_on_action_show_titlebar_checked(view):
+    with patch_window_recreation(view) as (show, destroy, create):
+        view.on_action_show_titlebar(True)
     assert not (view.parent.windowFlags() & Qt.WindowType.FramelessWindowHint)
-    show_mock.assert_called_once()
-    destroy_mock.assert_called_once()
-    create_mock.assert_called_once()
+    show.assert_called_once_with()
+    destroy.assert_called_once_with()
+    create.assert_called_once_with()
 
 
-@patch('PyQt6.QtWidgets.QWidget.create')
-@patch('PyQt6.QtWidgets.QWidget.destroy')
-@patch('PyQt6.QtWidgets.QWidget.show')
-def test_on_action_show_titlebar_unchecked(
-        show_mock, destroy_mock, create_mock, view):
-    view.on_action_show_titlebar(False)
+def test_on_action_show_titlebar_unchecked(view):
+    with patch_window_recreation(view) as (show, destroy, create):
+        view.on_action_show_titlebar(False)
     assert view.parent.windowFlags() & Qt.WindowType.FramelessWindowHint
-    show_mock.assert_called_once()
-    destroy_mock.assert_called_once()
-    create_mock.assert_called_once()
+    show.assert_called_once_with()
+    destroy.assert_called_once_with()
+    create.assert_called_once_with()
 
 
 @patch('myRef.widgets.welcome_overlay.WelcomeOverlay.cursor')
@@ -1461,7 +1462,8 @@ def test_mouse_press_move_window(cursor_mock, mouse_event_mock, view):
     view.mousePressEvent(event)
     assert view.active_mode is None
     assert view.movewin_active is True
-    assert view.event_start == view.mapToGlobal(QtCore.QPointF(10.0, 20.0))
+    # The cursor position is already global
+    assert view.event_start == QtCore.QPointF(10.0, 20.0)
     mouse_event_mock.assert_not_called()
     event.accept.assert_called_once_with()
 
@@ -1571,8 +1573,12 @@ def test_mouse_move_movewin(move_mock, mouse_event_mock, view):
     view.event_start = QtCore.QPointF(10.0, 20.0)
     event = MagicMock()
     event.position.return_value = QtCore.QPointF(15.0, 18.0)
+    window = view.parent
+    x, y = window.x(), window.y()
+    delta = view.mapToGlobal(QtCore.QPointF(15.0, 18.0)) - view.event_start
     view.mouseMoveEvent(event)
-    move_mock.assert_called_once_with(5, -2)
+    move_mock.assert_called_once_with(
+        x + int(delta.x()), y + int(delta.y()))
     mouse_event_mock.assert_not_called()
     event.accept.assert_called_once_with()
 
@@ -1688,7 +1694,7 @@ def test_drop_when_url_beefile_and_scene_empty(open_mock, view):
     event.position.return_value = QtCore.QPointF(10.0, 20.0)
 
     view.dropEvent(event)
-    open_mock.assert_called_once_with(filename)
+    open_mock.assert_called_once_with(url.toLocalFile())
 
 
 @patch('myRef.view.BeeGraphicsView.do_insert_images')

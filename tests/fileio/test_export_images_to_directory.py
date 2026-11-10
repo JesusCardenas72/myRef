@@ -1,5 +1,6 @@
 import os
 import stat
+import sys
 from unittest.mock import MagicMock
 import pytest
 
@@ -213,6 +214,9 @@ def test_images_to_directory_exporter_export_with_worker_when_file_exists(
     worker.user_input_required.emit.assert_called_once_with(imgfilename)
 
 
+@pytest.mark.skipif(
+    sys.platform == 'win32',
+    reason='chmod does not make directories read-only on Windows')
 def test_images_to_directory_exporter_export_when_dir_not_writeable(
         view, tmpdir, imgdata3x3, imgfilename3x3,):
 
@@ -224,9 +228,12 @@ def test_images_to_directory_exporter_export_when_dir_not_writeable(
 
     with pytest.raises(BeeFileIOError) as e:
         exporter.export()
-        assert e.filename == tmpdir
+    assert e.value.filename == tmpdir
 
 
+@pytest.mark.skipif(
+    sys.platform == 'win32',
+    reason='chmod does not make directories read-only on Windows')
 def test_images_to_directory_exporter_export_when_dir_not_writeable_w_worker(
         view, tmpdir, imgdata3x3, imgfilename3x3,):
 

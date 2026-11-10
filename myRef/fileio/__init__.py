@@ -61,16 +61,19 @@ def load_images(filenames, pos, scene, worker):
     for i, filename in enumerate(filenames):
         logger.info(f'Loading image from file {filename}')
         img, filename = load_image(filename)
-        worker.progress.emit(i)
         if img.isNull():
             logger.info(f'Could not load file {filename}')
             errors.append(filename)
+            worker.progress.emit(i)
             continue
 
         item = BeePixmapItem(img, filename)
         item.set_pos_center(pos)
         scene.add_item_later({'item': item, 'type': 'pixmap'}, selected=True)
         items.append(item)
+        # Only after queuing the item, so that the progress handler
+        # in the main thread can add it:
+        worker.progress.emit(i)
         if worker.canceled:
             break
         # Give main thread time to process items:

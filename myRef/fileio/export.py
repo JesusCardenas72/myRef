@@ -315,6 +315,8 @@ class SceneToSVGExporter(SceneExporterBase):
                 'right': ('end', frame.right()),
             }[alignment]
             font = group_style.title_font(style)
+            weight = 'bold' if font.bold() else 'normal'
+            font_style = 'italic' if font.italic() else 'normal'
             attrib = {
                 'x': f'{x:g}',
                 'y': f'{frame.center().y():g}',
@@ -322,8 +324,8 @@ class SceneToSVGExporter(SceneExporterBase):
                 'dominant-baseline': 'central',
                 'style': (f'white-space:pre;font-size:{font.pixelSize()}px;'
                           f'font-family:{", ".join(font.families())};'
-                          f'font-weight:{"bold" if font.bold() else "normal"};'
-                          f'font-style:{"italic" if font.italic() else "normal"}'),
+                          f'font-weight:{weight};'
+                          f'font-style:{font_style}'),
                 **self._svg_color(style['title_color'], 'fill')}
             if not title_transform.isIdentity():
                 t = title_transform

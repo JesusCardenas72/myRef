@@ -1428,8 +1428,10 @@ class BeeGraphicsView(MainControlsMixin,
 
         # We set a marker for ourselves in the global clipboard so
         # that we know to look up the internal clipboard when pasting:
-        clipboard.mimeData().setData(
-            'myRef/items', QtCore.QByteArray.number(len(items)))
+        mimedata = clipboard.mimeData()
+        if mimedata is not None:
+            mimedata.setData(
+                'myRef/items', QtCore.QByteArray.number(len(items)))
 
     def on_action_copy_as_file(self):
         """Copy the selected images as temporary PNG files, for pasting
@@ -1477,7 +1479,10 @@ class BeeGraphicsView(MainControlsMixin,
         pos = self.mapToScene(self.mapFromGlobal(self.cursor().pos()))
 
         # See if we need to look up the internal clipboard:
-        data = clipboard.mimeData().data('myRef/items')
+        # mimeData() is None if the clipboard is empty or unavailable
+        # (e.g. another application holds it on Windows)
+        mimedata = clipboard.mimeData()
+        data = mimedata.data('myRef/items') if mimedata else None
         logger.debug(f'Custom data in clipboard: {data}')
         if data and self.scene.internal_clipboard:
             # Checking that internal clipboard exists since the user

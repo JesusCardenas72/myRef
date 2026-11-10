@@ -185,7 +185,8 @@ def _restore(view, state_dir):
         view.update_window_title()
         view.setTransform(QtGui.QTransform(*state['transform']))
         view.centerOn(QtCore.QPointF(*state['center']))
-        print(f'[dev] Lienzo restaurado ({len(list(view.scene.items_for_save()))} '
+        count = len(list(view.scene.items_for_save()))
+        print(f'[dev] Lienzo restaurado ({count} '
               f'elementos, zoom {view.get_scale():.2f})', flush=True)
 
     if scene_file.exists():
