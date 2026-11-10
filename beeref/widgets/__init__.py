@@ -28,6 +28,7 @@ from beeref.widgets import (  # noqa: F401
     welcome_overlay,
     color_gamut,
     view_buttons,
+    hierarchy,
 )
 
 

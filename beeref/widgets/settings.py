@@ -297,6 +297,14 @@ class ArrangeGapWidget(IntegerGroup):
     MAX = 200
 
 
+class DragIntoGroupsWidget(SingleCheckboxGroup):
+    TITLE = 'Groups:'
+    HELPTEXT = ('Moving items onto a group puts them into the group; '
+                'moving them out of their group takes them out of it.')
+    LABEL = 'Drag items into groups'
+    KEY = 'Items/drag_into_groups'
+
+
 class AllocationLimitWidget(IntegerGroup):
     TITLE = 'Maximum Image Size:'
     HELPTEXT = ('The maximum image size that can be loaded (in megabytes). '
@@ -554,6 +562,7 @@ class SettingsDialog(QtWidgets.QDialog):
         items_layout.addWidget(ArrangeGapWidget(), 1, 0)
         items_layout.addWidget(ArrangeDefaultWidget(), 1, 1)
         items_layout.addWidget(NormalizeSourceWidget(), 2, 0)
+        items_layout.addWidget(DragIntoGroupsWidget(), 2, 1)
         tabs.addTab(items, '')
 
         # Export

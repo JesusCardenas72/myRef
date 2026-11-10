@@ -132,13 +132,13 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
     def copy_selection_to_internal_clipboard(self):
         self.internal_clipboard = []
-        for item in self.selectedItems(user_only=True):
+        for item in self.selected_top_items():
             self.internal_clipboard.append(item)
 
     def paste_from_internal_clipboard(self, position):
         copies = []
         for item in self.internal_clipboard:
-            copy = item.create_copy()
+            copy = item.copy_with_children()
             copies.append(copy)
         self.undo_stack.push(commands.InsertItems(self, copies, position))
 
@@ -690,11 +690,11 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         """Insert copies of the selected items, moved by ``offset``."""
 
         self.cancel_active_modes()
-        items = self.selectedItems(user_only=True)
+        items = self.selected_top_items()
         if not items:
             return
         center = self.items_center(items)
-        copies = [item.create_copy() for item in items]
+        copies = [item.copy_with_children() for item in items]
         self.undo_stack.push(
             commands.InsertItems(self, copies, center + offset))
 
@@ -859,8 +859,8 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                     and not self.items_locked):
                 # Enter the group and select the item that has been
                 # clicked on, in this group's level
-                self.open_group(target)
                 self.clearSelection()
+                self.open_group(target)
                 inner = self.interactive_item_at(event.scenePos())
                 if inner:
                     inner.setSelected(True)

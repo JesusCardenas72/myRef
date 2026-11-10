@@ -23,7 +23,7 @@ from xml.etree import ElementTree as ET
 from PyQt6 import QtCore, QtGui
 
 from .errors import BeeFileIOError
-from beeref import constants, widgets
+from beeref import constants, hierarchy, widgets
 from beeref.i18n import _
 from beeref.items import BeePixmapItem, items_in_order
 
@@ -103,14 +103,22 @@ class SceneExporterBase(ExporterBase):
         # to paint functions to not paint them?)
         if self.only_items:
             rect = self.scene.itemsBoundingRect(items=self.only_items)
-            items = self.only_items
+            items = list(self.only_items)
+            for item in self.only_items:
+                items.extend(i for i in hierarchy.descendants(item)
+                             if i not in items)
         else:
             rect = self.scene.itemsBoundingRect()
             items = self.scene.items()
         logger.trace(f'Items bounding rect: {rect}')
         self.items_rect = rect
-        # Sorted since z order in SVG is specified via the order of elements
-        self.items = sorted(items, key=lambda x: x.zValue())
+        # Sorted since z order in SVG is specified via the order of
+        # elements. Children are drawn above their parents, so use the
+        # scene's stacking order where possible.
+        stacking = {item: i for i, item in enumerate(
+            self.scene.items(order=QtCore.Qt.SortOrder.AscendingOrder))}
+        self.items = sorted(
+            items, key=lambda x: (stacking.get(x, -1), x.zValue()))
         size = QtCore.QSize(int(rect.width()), int(rect.height()))
         logger.trace(f'Export size without margins: {size}')
         self.margin = max(size.width(), size.height()) * 0.03
@@ -179,10 +187,19 @@ class SceneToPixmapExporter(SceneExporterBase):
         if not self.only_items:
             return []
         keep = set(self.only_items)
+        for item in self.only_items:
+            keep.update(hierarchy.descendants(item))
+        # Parents of exported items can't be hidden without hiding
+        # the exported items, too:
+        parents = set()
+        for item in self.only_items:
+            parents.update(hierarchy.ancestors(item))
         hidden = []
         for item in self.scene.items():
-            if (item.parentItem() is None and item not in keep
-                    and item.isVisible()):
+            if (item not in keep and item not in parents
+                    and item.isVisible()
+                    and (item.parentItem() is None
+                         or item.parentItem() in parents)):
                 item.setVisible(False)
                 hidden.append(item)
         return hidden
@@ -222,7 +239,7 @@ class SceneToSVGExporter(SceneExporterBase):
         self.size = self.default_size
         return True
 
-    def _get_textstyles(self, item):
+    def _get_textstyles(self, item, scale=None):
         fontstylemap = {
             QtGui.QFont.Style.StyleNormal: 'normal',
             QtGui.QFont.Style.StyleItalic: 'italic',
@@ -230,7 +247,9 @@ class SceneToSVGExporter(SceneExporterBase):
         }
 
         font = item.font()
-        fontsize = font.pointSize() * item.scale()
+        if scale is None:
+            scale = item.scale()
+        fontsize = font.pointSize() * scale
         families = ', '.join(font.families())
         fontstyle = fontstylemap[font.style()]
 
@@ -260,19 +279,23 @@ class SceneToSVGExporter(SceneExporterBase):
                 self.emit_progress(worker, i)
                 continue
 
-            pos = item.pos() - offset
+            # Children are positioned relative to their parents; use
+            # the values relative to the scene:
+            scene_pos, scale, rotation, flip = (
+                hierarchy.decompose_transform(item.sceneTransform()))
+            pos = scene_pos - offset
             anchor = pos
 
             if item.TYPE == 'text':
-                styles = self._get_textstyles(item)
+                styles = self._get_textstyles(item, scale)
                 element = ET.Element(
                     'text',
                     attrib={'style': ';'.join(styles),
                             'dominant-baseline': 'hanging'})
                 element.text = item.toPlainText()
             if item.TYPE == 'pixmap':
-                width = item.width * item.scale()
-                height = item.height * item.scale()
+                width = item.width * scale
+                height = item.height * scale
                 pixmap, imgformat = item.pixmap_to_bytes(
                     apply_grayscale=True,
                     apply_crop=True)
@@ -284,21 +307,21 @@ class SceneToSVGExporter(SceneExporterBase):
                         f'data:image/{imgformat};base64,{pixmap}',
                         'width': str(width),
                         'height': str(height),
-                        'image-rendering': ('crisp-edges' if item.scale() > 2
+                        'image-rendering': ('crisp-edges' if scale > 2
                                             else 'optimizeQuality')})
                 pos = pos + item.crop.topLeft()
 
             transforms = []
-            if item.flip() == -1:
+            if flip == -1:
                 # The following is not recognised by Inkscape and not an
                 # official standard:
                 # element.set('transform-origin', f'{anchor.x()} {anchor.y()}')
                 # Thus we need to fix the origin manually
                 transforms.append(f'translate({anchor.x()} {anchor.y()})')
-                transforms.append(f'scale({item.flip()} 1)')
+                transforms.append(f'scale({float(flip)} 1)')
                 transforms.append(f'translate(-{anchor.x()} -{anchor.y()})')
             transforms.append(
-                f'rotate({item.rotation()} {anchor.x()} {anchor.y()})')
+                f'rotate({round(rotation, 6)} {anchor.x()} {anchor.y()})')
 
             element.set('transform', ' '.join(transforms))
             element.set('x', str(pos.x()))

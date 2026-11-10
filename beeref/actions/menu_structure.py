@@ -77,6 +77,7 @@ menu_structure = [
             'tablet_mode',
             'lock_items',
             'grayscale_canvas',
+            'show_hierarchy',
             {
                 'menu': 'Can&vas',
                 'items': [
@@ -107,6 +108,23 @@ menu_structure = [
                     'titlebar_on_hover',
                 ],
             },
+        ],
+    },
+    {
+        'menu': 'Ite&ms',
+        'items': [
+            'group_items',
+            'ungroup_items',
+            'group_color',
+            MENU_SEPARATOR,
+            'parent_items',
+            'unparent_items',
+            MENU_SEPARATOR,
+            'lock_selected',
+            'unlock_all',
+            MENU_SEPARATOR,
+            'edit_comment',
+            'rename_item',
         ],
     },
     {

@@ -40,7 +40,8 @@ from beeref.fileio.errors import IMG_LOADING_ERROR_MSG
 from beeref.fileio.export import exporter_registry, ImagesToDirectoryExporter
 from beeref.i18n import _
 from beeref import widgets
-from beeref.items import BeePixmapItem, BeeTextItem, items_in_order
+from beeref.items import (
+    BeePixmapItem, BeeTextItem, BeeGroupItem, items_in_order)
 from beeref.main_controls import MainControlsMixin
 from beeref.scene import BeeGraphicsScene
 from beeref.utils import get_file_extension_from_format, qcolor_to_hex
@@ -88,6 +89,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.context_menu_blocked = False
         self.right_gesture_start = None
         self.right_gesture_moved = False
+        self.hierarchy_dock = None
 
         self.scene = BeeGraphicsScene(self.undo_stack)
         self.scene.changed.connect(self.on_scene_changed)
@@ -163,6 +165,8 @@ class BeeGraphicsView(MainControlsMixin,
 
     def on_language_changed(self):
         self.retranslate_menu_and_actions()
+        if self.hierarchy_dock:
+            self.hierarchy_dock.retranslate()
         self.welcome_overlay.retranslate()
         self.update_window_title()
 
@@ -532,6 +536,86 @@ class BeeGraphicsView(MainControlsMixin,
 
     def on_action_grayscale_canvas(self, checked):
         self.scene.set_grayscale_canvas(checked)
+
+    def on_action_group_items(self):
+        self.scene.group_selection()
+
+    def on_action_ungroup_items(self):
+        self.scene.ungroup_selection()
+
+    def on_action_group_color(self):
+        groups = [item for item in self.scene.selected_top_items()
+                  if isinstance(item, BeeGroupItem)]
+        if not groups:
+            return
+        color = QtWidgets.QColorDialog.getColor(
+            groups[0].background_color(), self, _('Group Color'),
+            QtWidgets.QColorDialog.ColorDialogOption.ShowAlphaChannel)
+        if color.isValid():
+            self.undo_stack.push(commands.ChangeGroupColor(
+                groups, color.name(QtGui.QColor.NameFormat.HexArgb)))
+
+    def on_action_parent_items(self):
+        self.scene.parent_selection()
+
+    def on_action_unparent_items(self):
+        self.scene.unparent_selection()
+
+    def on_action_lock_selected(self):
+        items = self.scene.selectedItems(user_only=True)
+        if items:
+            self.scene.clearSelection()
+            self.undo_stack.push(commands.SetItemsLocked(items, True))
+
+    def on_action_unlock_all(self):
+        items = [item for item in self.scene.items_for_save()
+                 if item.locked]
+        if items:
+            self.undo_stack.push(commands.SetItemsLocked(items, False))
+
+    def edit_comment(self, items):
+        """Open the comment dialog for the given items."""
+
+        if not items:
+            return
+        dialog = widgets.hierarchy.CommentDialog(self, items[0].comment)
+        if dialog.exec():
+            comment = dialog.comment()
+            if any(item.comment != comment for item in items):
+                self.undo_stack.push(commands.ChangeComment(items, comment))
+
+    def on_action_edit_comment(self):
+        self.edit_comment(self.scene.selectedItems(user_only=True))
+
+    def on_action_rename_item(self):
+        items = self.scene.selectedItems(user_only=True)
+        if not items:
+            return
+        item = items[0]
+        name, ok = QtWidgets.QInputDialog.getText(
+            self, _('Rename'), _('Name:'), text=item.display_name())
+        if ok:
+            name = name.strip()
+            if name == item.default_name():
+                name = ''
+            if name != item.name:
+                self.undo_stack.push(commands.RenameItem(item, name))
+
+    def on_action_show_hierarchy(self, checked):
+        if checked and self.hierarchy_dock is None:
+            main = self.parent
+            self.hierarchy_dock = widgets.hierarchy.HierarchyDock(self, main)
+            if isinstance(main, QtWidgets.QMainWindow):
+                main.addDockWidget(
+                    Qt.DockWidgetArea.RightDockWidgetArea,
+                    self.hierarchy_dock)
+                main.resizeDocks([self.hierarchy_dock], [220],
+                                 Qt.Orientation.Horizontal)
+        if self.hierarchy_dock is not None:
+            self.hierarchy_dock.setVisible(checked)
+
+    def on_hierarchy_closed(self):
+        self.set_checked_silently('show_hierarchy', False)
 
     def on_action_crop(self):
         self.scene.crop_items()
