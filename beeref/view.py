@@ -18,6 +18,7 @@ import logging
 import os
 import os.path
 import shutil
+import sys
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
@@ -581,6 +582,30 @@ class BeeGraphicsView(MainControlsMixin,
               'Are you sure you want to open a new scene?'))
         if confirm:
             self.open_from_file(filename)
+
+    def on_action_open_last_scene(self):
+        files = self.settings.get_recent_files(existing_only=True)
+        if not files:
+            widgets.BeeNotification(self, _('No recently opened scenes'))
+            return
+        self.on_action_open_recent_file(files[0])
+
+    def on_action_show_in_file_browser(self):
+        if not self.filename:
+            widgets.BeeNotification(
+                self, _('The scene has not been saved yet'))
+            return
+        path = os.path.abspath(self.filename)
+        logger.debug(f'Showing in file browser: {path}')
+        if sys.platform == 'win32':
+            # Opens the folder with the file selected
+            QtCore.QProcess.startDetached(
+                'explorer', ['/select,', os.path.normpath(path)])
+        elif sys.platform == 'darwin':
+            QtCore.QProcess.startDetached('open', ['-R', path])
+        else:
+            QtGui.QDesktopServices.openUrl(
+                QtCore.QUrl.fromLocalFile(os.path.dirname(path)))
 
     def open_from_file(self, filename):
         logger.info(f'Opening file {filename}')

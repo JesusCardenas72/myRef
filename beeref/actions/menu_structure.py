@@ -25,6 +25,8 @@ menu_structure = [
                 'menu': 'Open &Recent',
                 'items': '_build_recent_files',
             },
+            'open_last_scene',
+            'show_in_file_browser',
             MENU_SEPARATOR,
             'save',
             'save_as',

@@ -159,6 +159,14 @@ class WelcomeOverlay(MainControlsMixin, QtWidgets.QWidget):
             return
         super().mouseMoveEvent(event)
 
+    def mouseDoubleClickEvent(self, event):
+        # Double-clicking the empty canvas opens a scene
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.control_target.on_action_open()
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
     def mouseReleaseEvent(self, event):
         if self.mouseReleaseEventMainControls(event):
             return

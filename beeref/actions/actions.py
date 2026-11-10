@@ -190,6 +190,18 @@ actions = BeeActionList([
         callback='on_action_open',
     ),
     Action(
+        id='open_last_scene',
+        text='Open &Last Scene',
+        shortcuts=['Ctrl+Shift+L'],
+        callback='on_action_open_last_scene',
+    ),
+    Action(
+        id='show_in_file_browser',
+        text='Show in File &Browser',
+        shortcuts=['Ctrl+Alt+L'],
+        callback='on_action_show_in_file_browser',
+    ),
+    Action(
         id='save',
         text='&Save',
         shortcuts=['Ctrl+S'],

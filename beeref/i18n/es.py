@@ -259,6 +259,10 @@ TRANSLATIONS = {
     ('Al exportar imágenes, exportar solo el área visible de las '
      'imágenes recortadas en lugar de la imagen completa.'),
     'Export cropped area only': 'Exportar solo el área recortada',
+    'Open &Last Scene': 'Abrir ú&ltima escena',
+    'Show in File &Browser': 'Mostrar en el explorador de archi&vos',
+    'No recently opened scenes': 'No hay escenas abiertas recientemente',
+    'The scene has not been saved yet': 'La escena aún no se ha guardado',
     'Normalize To:': 'Normalizar respecto a:',
     'Which size the normalize actions use as reference':
     'Qué tamaño usan como referencia las acciones de normalizar',
