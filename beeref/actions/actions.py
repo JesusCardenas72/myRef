@@ -458,6 +458,21 @@ actions = BeeActionList([
         group='active_when_selection',
     ),
     Action(
+        id='nearest_neighbor',
+        text='&Pixelated (No Smoothing)',
+        shortcuts=['Alt+T'],
+        checkable=True,
+        callback='on_action_nearest_neighbor',
+        group='active_when_selection',
+    ),
+    Action(
+        id='grayscale_canvas',
+        text='&Grayscale Canvas',
+        shortcuts=['Ctrl+Alt+G'],
+        checkable=True,
+        callback='on_action_grayscale_canvas',
+    ),
+    Action(
         id='show_color_gamut',
         text='Show &Color Gamut',
         callback='on_action_show_color_gamut',

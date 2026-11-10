@@ -71,6 +71,7 @@ menu_structure = [
             MENU_SEPARATOR,
             'tablet_mode',
             'lock_items',
+            'grayscale_canvas',
             MENU_SEPARATOR,
             'move_window',
         ],
@@ -131,6 +132,7 @@ menu_structure = [
         'items': [
             'change_opacity',
             'grayscale',
+            'nearest_neighbor',
             MENU_SEPARATOR,
             'show_color_gamut',
             'sample_color',

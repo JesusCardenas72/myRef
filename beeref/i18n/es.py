@@ -238,6 +238,8 @@ TRANSLATIONS = {
     'Distribute Hori&zontally': 'Distribuir horizontal&mente',
     'Distribute V&ertically': 'Distribuir verticalm&ente',
     'St&ack': 'Api&lar',
+    '&Pixelated (No Smoothing)': '&Pixelado (sin suavizado)',
+    '&Grayscale Canvas': 'Lienzo en escala de gr&ises',
     'Normalize To:': 'Normalizar respecto a:',
     'Which size the normalize actions use as reference':
     'Qué tamaño usan como referencia las acciones de normalizar',

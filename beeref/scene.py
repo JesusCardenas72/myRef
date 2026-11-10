@@ -60,6 +60,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self.edit_item = None
         self.crop_item = None
         self.items_locked = False
+        self.grayscale_canvas = False
         self.settings = BeeSettings()
         self.clear()
         self._clear_ongoing = False
@@ -476,6 +477,11 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         copies = [item.create_copy() for item in items]
         self.undo_stack.push(
             commands.InsertItems(self, copies, center + offset))
+
+    def set_grayscale_canvas(self, value):
+        """Show all images in grayscale (view only, not saved)."""
+        self.grayscale_canvas = value
+        self.update()
 
     def flip_items(self, vertical=False):
         """Flip selected items."""

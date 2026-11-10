@@ -494,6 +494,16 @@ class BeeGraphicsView(MainControlsMixin,
             self.undo_stack.push(
                 commands.ToggleGrayscale(images, checked))
 
+    def on_action_nearest_neighbor(self, checked):
+        images = [item for item in self.scene.selectedItems(user_only=True)
+                  if item.is_image]
+        if images and any(i.nearest_neighbor != checked for i in images):
+            self.undo_stack.push(
+                commands.ToggleNearestNeighbor(images, checked))
+
+    def on_action_grayscale_canvas(self, checked):
+        self.scene.set_grayscale_canvas(checked)
+
     def on_action_crop(self):
         self.scene.crop_items()
 
@@ -881,6 +891,8 @@ class BeeGraphicsView(MainControlsMixin,
             item = self.scene.selectedItems(user_only=True)[0]
             grayscale = getattr(item, 'grayscale', False)
             actions.actions['grayscale'].qaction.setChecked(grayscale)
+            nearest = getattr(item, 'nearest_neighbor', False)
+            actions.actions['nearest_neighbor'].qaction.setChecked(nearest)
         self.viewport().repaint()
 
     def on_cursor_changed(self, cursor):

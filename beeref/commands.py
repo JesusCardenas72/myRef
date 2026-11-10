@@ -369,6 +369,26 @@ class ChangeOpacity(QtGui.QUndoCommand):
             item.setOpacity(opacity)
 
 
+class ToggleNearestNeighbor(QtGui.QUndoCommand):
+    """Toggle pixelated display (no smoothing) on images."""
+
+    def __init__(self, items, value):
+        super().__init__('Toggle Pixelated')
+        self.items = [item for item in items if item.is_image]
+        self.value = value
+        self.old_values = [item.nearest_neighbor for item in self.items]
+
+    def redo(self):
+        for item in self.items:
+            item.nearest_neighbor = self.value
+            item.update()
+
+    def undo(self):
+        for item, value in zip(self.items, self.old_values):
+            item.nearest_neighbor = value
+            item.update()
+
+
 class ToggleGrayscale(QtGui.QUndoCommand):
     """Toggle grayscale mode on images."""
 
