@@ -181,6 +181,10 @@ class BeeSettings(QtCore.QSettings):
             'default': 'best',
             'validate': lambda x: x in ('png', 'jpg', 'best'),
         },
+        'Items/drag_into_groups': {
+            'default': True,
+            'cast': cast_bool,
+        },
         'Items/arrange_gap': {
             'default': 0,
             'cast': int,

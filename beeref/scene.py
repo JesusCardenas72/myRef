@@ -25,15 +25,18 @@ from PyQt6.QtCore import Qt
 import rpack
 
 from beeref import commands
+from beeref import hierarchy
 from beeref import snapping
 from beeref.config import BeeSettings
 from beeref.i18n import _
 from beeref.items import (
     item_registry,
     items_in_order,
+    sibling_order,
     sort_by_addition,
     sort_by_filename,
     BeeErrorItem,
+    BeeGroupItem,
 )
 from beeref.selection import MultiSelectItem, RubberbandItem
 
@@ -65,6 +68,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self.snap_guides = []
         self.move_start_rect = None
         self.snap_others = []
+        self.selection_history = []
         self.settings = BeeSettings()
         self.clear()
         self._clear_ongoing = False
@@ -76,13 +80,16 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self.rubberband_item = RubberbandItem()
         self.multi_select_item = MultiSelectItem()
         self.pending_parents = {}
+        self.selection_history = []
         self._clear_ongoing = False
 
     def addItem(self, item):
         logger.debug(f'Adding item {item}')
         super().addItem(item)
         if hasattr(item, 'set_locked'):
-            item.set_locked(self.items_locked)
+            # Children get added together with their parent
+            for i in [item] + hierarchy.descendants(item):
+                i.set_locked(self.items_locked)
 
     def removeItem(self, item):
         logger.debug(f'Removing item {item}')
@@ -159,6 +166,215 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
         return [item for item in self.items()
                 if hasattr(item, 'save_id') and item.parentItem() is None]
+
+    def selected_top_items(self):
+        """The selected items without those whose ancestors are
+        selected, too (they get transformed along with their
+        ancestors)."""
+
+        return hierarchy.top_most(self.selectedItems(user_only=True))
+
+    def groups(self):
+        """All groups, innermost first."""
+
+        groups = list(self.items_by_type(BeeGroupItem.TYPE))
+        groups.sort(key=lambda g: len(hierarchy.ancestors(g)),
+                    reverse=True)
+        return groups
+
+    def fit_groups(self):
+        """Fit all groups to their children."""
+
+        for group in self.groups():
+            group.fit_to_children()
+
+    def open_group(self, group):
+        """Open a group (and the groups it is in) so that its children
+        can be selected on their own."""
+
+        for g in reversed([group] + hierarchy.ancestors(group)):
+            if isinstance(g, BeeGroupItem):
+                g.set_open(True)
+
+    def close_unused_groups(self):
+        """Close open groups that have no selected items inside."""
+
+        selected = self.selectedItems(user_only=True)
+        for group in self.groups():
+            if group.is_open and not any(
+                    group in hierarchy.ancestors(item) for item in selected):
+                group.set_open(False)
+
+    def effective_item(self, item):
+        """The item that a click on the given item applies to: the
+        outermost closed group containing it, or the item itself."""
+
+        result = item
+        for ancestor in hierarchy.ancestors(item):
+            if isinstance(ancestor, BeeGroupItem) and not ancestor.is_open:
+                result = ancestor
+        return result
+
+    def _interactive_item(self, item):
+        """The item that reacts to a click on the given item, if any."""
+
+        if not isinstance(item, QtWidgets.QGraphicsItem):
+            return item
+        if hierarchy.is_user_item(item):
+            item = self.effective_item(item)
+        if item.flags() & item.GraphicsItemFlag.ItemIsSelectable:
+            return item
+        return None
+
+    def interactive_item_at(self, pos):
+        """The topmost item at the given position that reacts to the
+        mouse. Locked items are skipped; for items in closed groups,
+        the group is returned."""
+
+        if isinstance(pos, QtCore.QPoint):
+            pos = QtCore.QPointF(pos)
+        view = self.views()[0]
+        first = self.itemAt(pos, view.transform())
+        if first is None:
+            return None
+        result = self._interactive_item(first)
+        if result is not None:
+            return result
+        for item in self.items(pos,
+                               Qt.ItemSelectionMode.IntersectsItemShape,
+                               Qt.SortOrder.DescendingOrder,
+                               view.transform()):
+            result = self._interactive_item(item)
+            if result is not None:
+                return result
+        return None
+
+    def group_selection(self):
+        """Put the selected items into a new group."""
+
+        self.cancel_active_modes()
+        items = self.selected_top_items()
+        if not items:
+            return
+        # Items can only be grouped if they share the same parent
+        parent = items[0].parentItem()
+        items = [item for item in items if item.parentItem() is parent]
+        self.undo_stack.push(
+            commands.GroupItems(self, items, BeeGroupItem()))
+
+    def ungroup_selection(self):
+        """Dissolve the selected groups."""
+
+        self.cancel_active_modes()
+        groups = [item for item in self.selected_top_items()
+                  if isinstance(item, BeeGroupItem)]
+        if groups:
+            self.undo_stack.push(commands.UngroupItems(self, groups))
+
+    def parent_selection(self):
+        """Make the selected items children of the item that has been
+        selected first."""
+
+        self.cancel_active_modes()
+        selected = self.selectedItems(user_only=True)
+        if len(selected) < 2:
+            return
+        history = [i for i in self.selection_history if i in selected]
+        parent = history[0] if history else items_in_order(selected)[0]
+        forbidden = set([parent] + hierarchy.ancestors(parent))
+        items = [item for item in hierarchy.top_most(selected)
+                 if item not in forbidden]
+        self.move_in_hierarchy(items, parent, text='Parent items')
+
+    def unparent_selection(self):
+        """Move the selected items to the top level of the hierarchy."""
+
+        self.cancel_active_modes()
+        items = [item for item in self.selected_top_items()
+                 if item.parentItem() is not None]
+        if items:
+            self.move_in_hierarchy(items, None, text='Unparent items')
+
+    def ordered_children(self, parent):
+        """The children of the given item (or the top-level items for
+        ``None``) in hierarchy order."""
+
+        if parent is None:
+            return sibling_order(self.user_items())
+        return sibling_order(hierarchy.user_children(parent))
+
+    def move_in_hierarchy(self, items, parent, index=None,
+                          text='Change hierarchy'):
+        """Make the items children of ``parent`` (or top-level items
+        for ``None``) and put them at the given position among the
+        parent's children (at the end for ``None``)."""
+
+        items = hierarchy.top_most(items)
+        if parent is not None:
+            forbidden = set(items)
+            if parent in forbidden or forbidden.intersection(
+                    hierarchy.ancestors(parent)):
+                logger.debug('Not moving items into their own descendants')
+                return
+        siblings = self.ordered_children(parent)
+        if index is None:
+            index = len(siblings)
+        moving = set(items)
+        new_order = ([s for s in siblings[:index] if s not in moving]
+                     + items
+                     + [s for s in siblings[index:] if s not in moving])
+        changes = [(item, parent, i) for i, item in enumerate(new_order)]
+        self.undo_stack.push(commands.ChangeHierarchy(self, changes, text))
+
+    def select_items(self, items):
+        """Select the given items, opening the groups they are in."""
+
+        self.cancel_active_modes()
+        self.clearSelection()
+        for item in items:
+            for ancestor in hierarchy.ancestors(item):
+                if isinstance(ancestor, BeeGroupItem):
+                    self.open_group(ancestor)
+                    break
+            item.setSelected(True)
+
+    def drop_target_group(self, pos, items):
+        """The group under the given position into which the given
+        (moving) items would be dropped, or ``None``."""
+
+        if isinstance(pos, QtCore.QPoint):
+            pos = QtCore.QPointF(pos)
+        excluded = set(items)
+        for item in items:
+            excluded.update(hierarchy.descendants(item))
+        view = self.views()[0]
+        for item in self.items(pos,
+                               Qt.ItemSelectionMode.IntersectsItemShape,
+                               Qt.SortOrder.DescendingOrder,
+                               view.transform()):
+            if isinstance(item, BeeGroupItem) and item not in excluded:
+                return item
+        return None
+
+    def items_to_drop(self, pos, items):
+        """After moving items, they get put into the group they have
+        been dropped on, or taken out of their group if they have been
+        dropped outside of it.
+
+        Only items that are top-level items or in a group are affected
+        (not children of images etc.).
+
+        :returns: (items, target group or ``None``)
+        """
+
+        if not self.settings.valueOrDefault('Items/drag_into_groups'):
+            return [], None
+        target = self.drop_target_group(pos, items)
+        items = [item for item in hierarchy.top_most(items)
+                 if (item.parentItem() is None
+                     or isinstance(item.parentItem(), BeeGroupItem))
+                 and item.parentItem() is not target]
+        return items, target
 
     def items_for_action(self):
         """The items an organizing action should affect.
@@ -562,8 +778,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         if event.button() == Qt.MouseButton.LeftButton:
             self.event_start = event.scenePos()
             self.last_move_delta = None
-            item_at_pos = self.itemAt(
-                event.scenePos(), self.views()[0].transform())
+            item_at_pos = self.interactive_item_at(event.scenePos())
 
             if self.edit_item:
                 if item_at_pos != self.edit_item:
@@ -597,11 +812,17 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self.move_start_rect = self.itemsBoundingRect(selection_only=True)
         view = self.views()[0] if self.views() else None
         if getattr(view, 'snap_to_items', False):
-            selected = set(self.selectedItems(user_only=True))
+            # Don't snap to items that move along or contain the
+            # moving items
+            selected = self.selectedItems(user_only=True)
+            excluded = set(selected)
+            for item in selected:
+                excluded.update(hierarchy.descendants(item))
+                excluded.update(hierarchy.ancestors(item))
             self.snap_others = [
                 self.itemsBoundingRect(items=[item])
                 for item in self.items_for_save()
-                if item not in selected and item.isVisible()]
+                if item not in excluded and item.isVisible()]
 
     def snap_move_delta(self, delta, modifiers, axes=(True, True)):
         """Correct the move delta according to grid and item snapping.
@@ -632,6 +853,19 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
     def mouseDoubleClickEvent(self, event):
         self.cancel_active_modes()
         item = self.itemAt(event.scenePos(), self.views()[0].transform())
+        if item and hierarchy.is_user_item(item):
+            target = self.effective_item(item)
+            if (isinstance(target, BeeGroupItem) and target is not item
+                    and not self.items_locked):
+                # Enter the group and select the item that has been
+                # clicked on, in this group's level
+                self.open_group(target)
+                self.clearSelection()
+                inner = self.interactive_item_at(event.scenePos())
+                if inner:
+                    inner.setSelected(True)
+                return
+            item = target
         if item:
             if not item.isSelected():
                 item.setSelected(True)
@@ -669,9 +903,12 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             self.set_snap_guides(guides)
             correction = raw_delta - delta
             if not correction.isNull():
-                for item in self.selectedItems(user_only=True):
+                for item in self.selected_top_items():
                     if item.flags() & item.GraphicsItemFlag.ItemIsMovable:
-                        item.setPos(item.pos() - correction)
+                        item.setPos(
+                            item.pos()
+                            - hierarchy.scene_delta_to_parent(
+                                item, correction))
             self.last_move_delta = delta
 
     def is_moving_items(self):
@@ -698,10 +935,20 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             if delta is None:
                 delta = event.scenePos() - self.event_start
             if not delta.isNull():
-                self.undo_stack.push(
-                    commands.MoveItemsBy(self.selectedItems(),
-                                         delta,
-                                         ignore_first_redo=True))
+                items = self.selected_top_items()
+                move = commands.MoveItemsBy(items,
+                                            delta,
+                                            ignore_first_redo=True)
+                drop, target = self.items_to_drop(event.scenePos(), items)
+                if drop:
+                    self.undo_stack.beginMacro('Move items')
+                    self.undo_stack.push(move)
+                    if target:
+                        self.open_group(target)
+                    self.move_in_hierarchy(drop, target, text='Move items')
+                    self.undo_stack.endMacro()
+                else:
+                    self.undo_stack.push(move)
         self.set_snap_guides([])
         self.move_start_rect = None
         self.snap_others = []
@@ -785,6 +1032,12 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             # Ignore events while clearing the scene since the
             # multiselect item will get cleared, too
             return
+        selected = self.selectedItems(user_only=True)
+        self.selection_history = (
+            [i for i in self.selection_history if i in selected]
+            + items_in_order(
+                [i for i in selected if i not in self.selection_history]))
+        self.close_unused_groups()
         if self.has_multi_selection():
             self.multi_select_item.fit_selection_area(
                 self.itemsBoundingRect(selection_only=True))
@@ -803,6 +1056,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 and self.multi_select_item.active_mode is None):
             self.multi_select_item.fit_selection_area(
                 self.itemsBoundingRect(selection_only=True))
+        self.fit_groups()
 
     def add_item_later(self, itemdata, selected=False):
         """Keep an item for adding later via ``add_queued_items``
@@ -867,3 +1121,4 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             child.setParentItem(parent)
             child.pending_parent_id = None
             del self.pending_parents[child]
+        self.fit_groups()

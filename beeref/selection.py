@@ -51,9 +51,10 @@ def with_anchor(func):
                 args = args[:-1]
 
         anchor = anchor or QtCore.QPointF(0, 0)
-        prev = self.mapToScene(anchor)
+        # Positions are relative to the parent item, if there is one:
+        prev = self.mapToParent(anchor)
         func(self, *args, **kwargs)
-        diff = self.mapToScene(anchor) - prev
+        diff = self.mapToParent(anchor) - prev
         self.setPos(self.pos() - diff)
 
     return wrapper
@@ -691,7 +692,10 @@ class MultiSelectItem(SelectableMixin,
         """The items affected by selection actions like scaling and rotating.
         """
         if self.scene():
-            return list(self.scene().selectedItems())
+            # Children get transformed along with their parents
+            top = set(self.scene().selected_top_items())
+            return [item for item in self.scene().selectedItems()
+                    if item in top or not hasattr(item, 'save_id')]
         return []
 
     def lower_behind_selection(self):

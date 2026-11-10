@@ -17,6 +17,54 @@ import time
 
 from PyQt6 import QtCore, QtGui
 
+from beeref import hierarchy
+
+
+def is_group(item):
+    return getattr(item, 'TYPE', None) == 'group'
+
+
+def fit_groups(scene):
+    """Fit all groups to their children, innermost groups first."""
+    if hasattr(scene, 'fit_groups'):
+        scene.fit_groups()
+
+
+def remove_empty_groups(scene, candidates):
+    """Remove groups that have no children anymore.
+
+    Removing a group can leave its parent group empty, too.
+
+    :returns: List of (group, parent) for ``restore_groups``
+    """
+    removed = []
+    for group in candidates:
+        while (group is not None and is_group(group) and group.scene()
+               and not hierarchy.user_children(group)):
+            parent = group.parentItem()
+            removed.append((group, parent))
+            scene.removeItem(group)
+            group = parent
+    return removed
+
+
+def restore_groups(scene, removed):
+    """Re-add groups removed by ``remove_empty_groups``."""
+    for group, parent in reversed(removed):
+        add_to_parent(scene, group, parent)
+
+
+def add_to_parent(scene, item, parent):
+    """Add the item to the scene, as child of ``parent`` if given.
+
+    Items removed from the scene lose their parent, but keep their
+    position relative to it.
+    """
+    if parent is not None:
+        item.setParentItem(parent)
+    else:
+        scene.addItem(item)
+
 
 def local_anchor(item, anchor):
     """Map a scene anchor to item coordinates.
@@ -66,20 +114,31 @@ class InsertItems(QtGui.QUndoCommand):
 
 
 class DeleteItems(QtGui.QUndoCommand):
+    """Delete items (and their children). Groups that end up empty are
+    deleted, too."""
+
     def __init__(self, scene, items):
         super().__init__('Delete items')
         self.scene = scene
-        self.items = items
+        # Children get removed together with their parents:
+        self.items = hierarchy.top_most(items)
+        self.parents = [item.parentItem() for item in self.items]
+        self.removed_groups = []
 
     def redo(self):
         for item in self.items:
             self.scene.removeItem(item)
+        self.removed_groups = remove_empty_groups(
+            self.scene, [p for p in self.parents if p is not None])
+        fit_groups(self.scene)
 
     def undo(self):
         self.scene.deselect_all_items()
-        for item in self.items:
+        restore_groups(self.scene, self.removed_groups)
+        for item, parent in zip(self.items, self.parents):
+            add_to_parent(self.scene, item, parent)
             item.setSelected(True)
-            self.scene.addItem(item)
+        fit_groups(self.scene)
 
 
 class MoveItemsBy(QtGui.QUndoCommand):
@@ -95,11 +154,13 @@ class MoveItemsBy(QtGui.QUndoCommand):
             self.ignore_first_redo = False
             return
         for item in self.items:
-            item.moveBy(self.delta.x(), self.delta.y())
+            delta = hierarchy.scene_delta_to_parent(item, self.delta)
+            item.moveBy(delta.x(), delta.y())
 
     def undo(self):
         for item in self.items:
-            item.moveBy(-self.delta.x(), -self.delta.y())
+            delta = hierarchy.scene_delta_to_parent(item, self.delta)
+            item.moveBy(-delta.x(), -delta.y())
 
 
 class ScaleItemsBy(QtGui.QUndoCommand):
@@ -310,7 +371,7 @@ class ArrangeItems(QtGui.QUndoCommand):
             orig_topleft = item.mapToScene(QtCore.QPointF(0, 0))
             rect_topleft = self.scene.itemsBoundingRect(
                 items=[item]).topLeft()
-            item.setPos(pos + orig_topleft - rect_topleft)
+            hierarchy.set_scene_pos(item, pos + orig_topleft - rect_topleft)
 
     def undo(self):
         for item, pos in zip(self.items, self.old_positions):
@@ -405,3 +466,185 @@ class ToggleGrayscale(QtGui.QUndoCommand):
     def undo(self):
         for item, grayscale in zip(self.items, self.old_grayscales):
             item.grayscale = grayscale
+
+
+class ChangeHierarchy(QtGui.QUndoCommand):
+    """Change parents and/or the order of items in the hierarchy.
+
+    Items keep their appearance in the scene when changing parents.
+    Groups that end up empty are deleted.
+
+    :param changes: List of (item, new parent, new sort order)
+    """
+
+    def __init__(self, scene, changes, text='Change hierarchy'):
+        super().__init__(text)
+        self.scene = scene
+        self.changes = changes
+        self.old = [(item, item.parentItem(),
+                     getattr(item, 'sort_order', None))
+                    for item, _, _ in changes]
+        self.removed_groups = []
+
+    def apply(self, values):
+        for item, parent, sort_order in values:
+            hierarchy.set_parent_keep_transform(item, parent)
+            item.sort_order = sort_order
+
+    def redo(self):
+        self.apply(self.changes)
+        self.removed_groups = remove_empty_groups(
+            self.scene, [p for _, p, _ in self.old if p is not None])
+        fit_groups(self.scene)
+
+    def undo(self):
+        restore_groups(self.scene, self.removed_groups)
+        self.apply(reversed(self.old))
+        fit_groups(self.scene)
+
+
+class GroupItems(QtGui.QUndoCommand):
+    """Put items into a new group.
+
+    The group gets the parent of the first item and covers the area of
+    all items.
+    """
+
+    def __init__(self, scene, items, group):
+        super().__init__('Group items')
+        self.scene = scene
+        self.items = hierarchy.top_most(items)
+        self.group = group
+        self.old = [(item, item.parentItem(),
+                     getattr(item, 'sort_order', None))
+                    for item in self.items]
+        self.parent = self.items[0].parentItem() if self.items else None
+        orders = [o for _, _, o in self.old if o is not None]
+        self.group.sort_order = min(orders) if orders else None
+        if getattr(self.group, 'added_at', None) is None:
+            self.group.added_at = time.time()
+
+    def redo(self):
+        self.scene.deselect_all_items()
+        rect = self.scene.itemsBoundingRect(items=self.items)
+        add_to_parent(self.scene, self.group, self.parent)
+        hierarchy.set_scene_pos(self.group, rect.topLeft())
+        self.group.setZValue(max(item.zValue() for item in self.items))
+        for item, _, _ in self.old:
+            hierarchy.set_parent_keep_transform(item, self.group)
+        self.group.fit_to_children()
+        fit_groups(self.scene)
+        self.group.setSelected(True)
+
+    def undo(self):
+        self.scene.deselect_all_items()
+        for item, parent, sort_order in self.old:
+            hierarchy.set_parent_keep_transform(item, parent)
+            item.sort_order = sort_order
+        self.scene.removeItem(self.group)
+        fit_groups(self.scene)
+        for item in self.items:
+            item.setSelected(True)
+
+
+class UngroupItems(QtGui.QUndoCommand):
+    """Dissolve groups; their children go to the groups' parents."""
+
+    def __init__(self, scene, groups):
+        super().__init__('Ungroup items')
+        self.scene = scene
+        self.groups = [g for g in groups if is_group(g)]
+        self.data = [(group, group.parentItem(),
+                      hierarchy.user_children(group))
+                     for group in self.groups]
+
+    def redo(self):
+        self.scene.deselect_all_items()
+        for group, parent, children in self.data:
+            for child in children:
+                hierarchy.set_parent_keep_transform(child, parent)
+            self.scene.removeItem(group)
+        fit_groups(self.scene)
+        for _, _, children in self.data:
+            for child in children:
+                child.setSelected(True)
+
+    def undo(self):
+        self.scene.deselect_all_items()
+        for group, parent, children in reversed(self.data):
+            add_to_parent(self.scene, group, parent)
+            for child in children:
+                hierarchy.set_parent_keep_transform(child, group)
+            group.fit_to_children()
+        fit_groups(self.scene)
+        for group in self.groups:
+            group.setSelected(True)
+
+
+class SetItemsLocked(QtGui.QUndoCommand):
+    """Lock or unlock single items (not the whole scene)."""
+
+    def __init__(self, items, locked):
+        super().__init__('Lock items' if locked else 'Unlock items')
+        self.items = items
+        self.locked = locked
+        self.old = [item.locked for item in items]
+
+    def redo(self):
+        for item in self.items:
+            item.set_item_locked(self.locked)
+
+    def undo(self):
+        for item, locked in zip(self.items, self.old):
+            item.set_item_locked(locked)
+
+
+class ChangeComment(QtGui.QUndoCommand):
+
+    def __init__(self, items, comment):
+        super().__init__('Change comment')
+        self.items = items
+        self.comment = comment
+        self.old = [item.comment for item in items]
+
+    def redo(self):
+        for item in self.items:
+            item.set_comment(self.comment)
+
+    def undo(self):
+        for item, comment in zip(self.items, self.old):
+            item.set_comment(comment)
+
+
+class RenameItem(QtGui.QUndoCommand):
+
+    def __init__(self, item, name):
+        super().__init__('Rename item')
+        self.item = item
+        self.name = name
+        self.old = item.name
+
+    def redo(self):
+        self.item.name = self.name
+
+    def undo(self):
+        self.item.name = self.old
+
+
+class ChangeGroupColor(QtGui.QUndoCommand):
+
+    def __init__(self, groups, color):
+        super().__init__('Change group color')
+        self.groups = [g for g in groups if is_group(g)]
+        self.color = color
+        self.old = [g.color for g in self.groups]
+
+    def redo(self):
+        for group in self.groups:
+            group.color = self.color
+            group.update()
+
+    def undo(self):
+        for group, color in zip(self.groups, self.old):
+            group.color = color
+            group.update()

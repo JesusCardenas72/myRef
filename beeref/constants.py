@@ -49,5 +49,6 @@ COLORS = {
     'Scene:GridDot': (115, 115, 115),
     'Scene:GridDotMajor': (150, 150, 150),
     'Scene:SnapGuide': (116, 234, 231),
+    'Scene:Group': (110, 110, 110, 110),
     'Scene:Text': (200, 200, 200),
 }

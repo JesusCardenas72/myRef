@@ -149,7 +149,7 @@ class CanvasMixin:
         panning imprecise. The view keeps showing the same items.
         """
 
-        items = list(self.scene.items_for_save())
+        items = self.scene.user_items()
         if not items:
             return
         center = self.scene.itemsBoundingRect().center()
