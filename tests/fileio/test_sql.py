@@ -675,3 +675,157 @@ def test_sqliteio_read_raises_error_when_file_empty(view, tmpfile):
 
     # should not create a file on reading!
     assert os.path.isfile(tmpfile) is False
+
+
+def test_migration_v2_to_v3_adds_hierarchy_columns(tmpfile):
+    io = SQLiteIO(tmpfile, MagicMock(), create_new=True)
+    io.ex('PRAGMA user_version=2')
+    io.ex("""
+        CREATE TABLE items (
+          id INTEGER PRIMARY KEY,
+          type TEXT NOT NULL,
+          x REAL DEFAULT 0,
+          y REAL DEFAULT 0,
+          z REAL DEFAULT 0,
+          scale REAL DEFAULT 1,
+          rotation REAL DEFAULT 0,
+          flip INTEGER DEFAULT 1,
+          data JSON)""")
+    io.ex("""
+        CREATE TABLE sqlar (
+            name TEXT PRIMARY KEY,
+            item_id INTEGER NOT NULL UNIQUE,
+            mode INT,
+            mtime INT default current_timestamp,
+            sz INT,
+            data BLOB)""")
+    io.ex('INSERT INTO items (type, x, data) VALUES (?, ?, ?)',
+          ('text', 5.5, json.dumps({'text': 'foo'})))
+    io.connection.commit()
+    del io
+
+    io = SQLiteIO(tmpfile, MagicMock(), create_new=False)
+    assert io.fetchone('PRAGMA user_version')[0] == 3
+    result = io.fetchone('SELECT x, parent_id, sort_order FROM items')
+    assert result == (5.5, None, None)
+
+
+def test_sqliteio_read_reads_item_without_blob_of_unknown_type(
+        tmpfile, view):
+    io = SQLiteIO(tmpfile, view.scene, create_new=True)
+    io.create_schema_on_new()
+    io.ex('INSERT INTO items (type, x, y, data) VALUES (?, ?, ?, ?)',
+          ('futuretype', 22.2, 33.3, json.dumps({'foo': 'bar'})))
+    io.connection.commit()
+    del io
+
+    io = SQLiteIO(tmpfile, view.scene, readonly=True)
+    io.read()
+    view.scene.add_queued_items()
+    assert len(view.scene.items()) == 1
+    item = view.scene.items()[0]
+    assert isinstance(item, BeeErrorItem)
+    assert item.original_save_id == 1
+    assert item.pos().x() == 22.2
+    assert 'futuretype' in item.toPlainText()
+
+
+def test_sqliteio_read_pixmap_item_without_blob_is_error_item(
+        tmpfile, view):
+    io = SQLiteIO(tmpfile, view.scene, create_new=True)
+    io.create_schema_on_new()
+    io.ex('INSERT INTO items (type, data) VALUES (?, ?)',
+          ('pixmap', json.dumps({'filename': 'bee.png'})))
+    io.connection.commit()
+    del io
+
+    io = SQLiteIO(tmpfile, view.scene, readonly=True)
+    io.read()
+    view.scene.add_queued_items()
+    assert len(view.scene.items()) == 1
+    item = view.scene.items()[0]
+    assert isinstance(item, BeeErrorItem)
+    assert 'bee.png' in item.toPlainText()
+
+
+def test_sqliteio_read_assigns_parents(tmpfile, view):
+    io = SQLiteIO(tmpfile, view.scene, create_new=True)
+    io.create_schema_on_new()
+    io.ex('INSERT INTO items (type, x, y, data, sort_order) '
+          'VALUES (?, ?, ?, ?, ?)',
+          ('text', 100, 200, json.dumps({'text': 'parent'}), 1.0))
+    io.ex('INSERT INTO items (type, x, y, data, parent_id, sort_order) '
+          'VALUES (?, ?, ?, ?, ?, ?)',
+          ('text', 10, 20, json.dumps({'text': 'child'}), 1, 2.0))
+    io.connection.commit()
+    del io
+
+    io = SQLiteIO(tmpfile, view.scene, readonly=True)
+    io.read()
+    view.scene.add_queued_items()
+    items = {i.toPlainText(): i for i in view.scene.items()}
+    parent = items['parent']
+    child = items['child']
+    assert child.parentItem() is parent
+    assert parent.parentItem() is None
+    assert child.pos() == QtCore.QPointF(10, 20)
+    assert child.scenePos() == QtCore.QPointF(110, 220)
+    assert parent.sort_order == 1.0
+    assert child.sort_order == 2.0
+    assert child.pending_parent_id is None
+    assert view.scene.pending_parents == {}
+
+
+def test_scene_resolve_parents_across_batches(view):
+    parent = BeeTextItem(text='parent')
+    child = BeeTextItem(text='child')
+    view.scene.add_item_later(
+        {'type': 'text', 'save_id': 2, 'parent_id': 1, 'item': child,
+         'data': {'text': 'child'}})
+    view.scene.add_queued_items()
+    assert view.scene.pending_parents
+    view.scene.add_item_later(
+        {'type': 'text', 'save_id': 1, 'item': parent,
+         'data': {'text': 'parent'}})
+    view.scene.add_queued_items()
+    texts = {i.toPlainText(): i for i in view.scene.items()}
+    assert texts['child'].parentItem() is texts['parent']
+    assert view.scene.pending_parents == {}
+
+
+def test_sqliteio_write_saves_parents_before_children(tmpfile, view):
+    parent = BeeTextItem(text='parent')
+    child = BeeTextItem(text='child')
+    view.scene.addItem(parent)
+    view.scene.addItem(child)
+    child.setParentItem(parent)
+    child.setPos(10, 20)
+    child.sort_order = 3.0
+    child.setZValue(-1)  # Would be saved first if sorted by z only
+    io = SQLiteIO(tmpfile, view.scene, create_new=True)
+    io.write()
+
+    rows = io.fetchall(
+        'SELECT id, json_extract(data, "$.text"), parent_id, sort_order, '
+        'x, y FROM items ORDER BY id')
+    assert rows == [
+        (parent.save_id, 'parent', None, None, 0.0, 0.0),
+        (child.save_id, 'child', parent.save_id, 3.0, 10.0, 20.0),
+    ]
+
+
+def test_sqliteio_write_updates_parent_id(tmpfile, view):
+    parent = BeeTextItem(text='parent')
+    child = BeeTextItem(text='child')
+    view.scene.addItem(parent)
+    view.scene.addItem(child)
+    io = SQLiteIO(tmpfile, view.scene, create_new=True)
+    io.write()
+    assert io.fetchone(
+        'SELECT parent_id FROM items WHERE id=?', (child.save_id,)) == (None,)
+
+    child.setParentItem(parent)
+    io.write()
+    assert io.fetchone(
+        'SELECT parent_id FROM items WHERE id=?',
+        (child.save_id,)) == (parent.save_id,)

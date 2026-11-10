@@ -111,6 +111,17 @@ class BeeItemMixin(SelectableMixin):
         self.setRotation(kwargs.get('rotation', self.rotation()))
         if kwargs.get('flip', 1) != self.flip():
             self.do_flip()
+        self.update_hierarchy_from_data(**kwargs)
+
+    def update_hierarchy_from_data(self, **kwargs):
+        """Remember hierarchy info from a bee file.
+
+        The parent can only be assigned once it has been added to the
+        scene, see ``BeeGraphicsScene.resolve_parents``.
+        """
+        self.sort_order = kwargs.get(
+            'sort_order', getattr(self, 'sort_order', None))
+        self.pending_parent_id = kwargs.get('parent_id')
 
 
 @register_item
@@ -791,6 +802,7 @@ class BeeErrorItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.setZValue(kwargs.get('z', self.zValue()))
         self.setScale(kwargs.get('scale', self.scale()))
         self.setRotation(kwargs.get('rotation', self.rotation()))
+        self.update_hierarchy_from_data(**kwargs)
 
     def create_copy(self):
         item = BeeErrorItem(self.toPlainText())
