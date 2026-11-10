@@ -25,6 +25,7 @@ from PyQt6.QtCore import Qt
 import rpack
 
 from myRef import commands
+from myRef import group_style
 from myRef import hierarchy
 from myRef import snapping
 from myRef.config import BeeSettings
@@ -37,6 +38,7 @@ from myRef.items import (
     sort_by_filename,
     BeeErrorItem,
     BeeGroupItem,
+    TitleGhostItem,
 )
 from myRef.selection import MultiSelectItem, RubberbandItem
 
@@ -50,10 +52,17 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
     MOVE_MODE = 1
     RUBBERBAND_MODE = 2
+    TITLE_MODE = 3
+    TITLE_RESIZE_MODE = 4
 
     def __init__(self, undo_stack):
         super().__init__()
         self.active_mode = None
+        self.title_group = None
+        self.title_ghost = None
+        self.title_active = None
+        self.title_was_active = False
+        self.title_resize = None
         self.undo_stack = undo_stack
         self.max_z = 0
         self.min_z = 0
@@ -80,6 +89,8 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self.rubberband_item = RubberbandItem()
         self.multi_select_item = MultiSelectItem()
         self.pending_parents = {}
+        self.title_active = None
+        self.title_resize = None
         self.selection_history = []
         self._clear_ongoing = False
 
@@ -118,6 +129,144 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         """
         self.cancel_crop_mode()
         self.end_rubberband_mode()
+        self.end_title_drag(apply=False)
+        self.end_title_resize(apply=False)
+
+    def start_group_interaction(self, event):
+        """React to a press on a group's settings icon or title.
+
+        :returns: Whether the press has been handled
+        """
+
+        pos = event.scenePos()
+        active = self.title_active
+        if active is not None and active.scene() is self:
+            handle = active.title_handle_at(active.mapFromScene(pos))
+            if handle:
+                self.start_title_resize(active, handle, pos)
+                event.accept()
+                return True
+        group = self.interactive_item_at(pos)
+        if isinstance(group, BeeGroupItem):
+            local = group.mapFromScene(pos)
+            if group.gear_contains(local):
+                self.clear_title_active()
+                self.select_items([group])
+                event.accept()
+                self.views()[0].edit_group_style([group])
+                return True
+            if group.title_contains(local):
+                self.title_was_active = group is self.title_active
+                if not self.title_was_active:
+                    self.clear_title_active()
+                self.select_items([group])
+                if self.title_was_active:
+                    # Selecting again must not deactivate the title
+                    self.activate_title(group)
+                self.event_start = pos
+                self.title_group = group
+                self.active_mode = self.TITLE_MODE
+                event.accept()
+                return True
+        self.clear_title_active()
+        return False
+
+    def activate_title(self, group, pos=None, edit=False):
+        """Select the title of a group and show its handles; with
+        ``edit`` also put a text cursor at the given scene position."""
+
+        self.title_active = group
+        group.title_active = True
+        group.update()
+        if edit:
+            self.views()[0].edit_group_title(group, pos)
+
+    def clear_title_active(self):
+        group = self.title_active
+        if group is None:
+            return
+        self.title_active = None
+        group.title_active = False
+        group.update()
+        view = self.views()[0] if self.views() else None
+        if view is not None:
+            view.close_title_editing()
+
+    def start_title_resize(self, group, handle, pos):
+        self.views()[0].flush_title_panel()
+        center = group.mapToScene(group.title_text_rect().center())
+        corner = group.mapToScene(
+            group.title_handle_rects()[handle].center())
+        start = math.hypot(corner.x() - center.x(), corner.y() - center.y())
+        self.title_resize = {
+            'group': group,
+            'command': commands.ChangeGroupStyle(
+                [group], text='Change title size'),
+            'center': center,
+            'start_distance': max(start, 0.0001),
+            'start_size': group.style['title_size'],
+        }
+        self.active_mode = self.TITLE_RESIZE_MODE
+
+    def update_title_resize(self, pos):
+        state = self.title_resize
+        if state is None:
+            return
+        center = state['center']
+        distance = math.hypot(pos.x() - center.x(), pos.y() - center.y())
+        size = state['start_size'] * distance / state['start_distance']
+        size = round(min(max(size, 1), group_style.MAX_TITLE_SIZE), 1)
+        state['command'].values['title_size'] = size
+        state['command'].redo()
+        view = self.views()[0]
+        view.refresh_title_panel()
+
+    def end_title_resize(self, apply):
+        state, self.title_resize = self.title_resize, None
+        if self.active_mode == self.TITLE_RESIZE_MODE:
+            self.active_mode = None
+        if state is None:
+            return
+        command = state['command']
+        if apply and command.values:
+            command.ignore_first_redo = True
+            self.undo_stack.push(command)
+        elif command.values:
+            command.undo()
+            self.views()[0].refresh_title_panel()
+
+    def update_title_drag(self, pos):
+        """Show where the title would go to if released at pos."""
+
+        group = self.title_group
+        if group is None:
+            return
+        view = self.views()[0]
+        moved = (pos - self.event_start) * view.transform().m11()
+        if self.title_ghost is None:
+            if abs(moved.x()) + abs(moved.y()) < 4:
+                return
+            self.title_ghost = TitleGhostItem(group)
+        self.title_ghost.set_position(
+            group.title_position_at(group.mapFromScene(pos)))
+
+    def end_title_drag(self, apply):
+        """Finish dragging a group's title; move it to where the ghost
+        shows if ``apply`` is set."""
+
+        group, ghost = self.title_group, self.title_ghost
+        self.title_group = None
+        self.title_ghost = None
+        if self.active_mode == self.TITLE_MODE:
+            self.active_mode = None
+        if ghost is not None:
+            position = ghost.position
+            self.removeItem(ghost)
+            if apply and position != group.style['title_position']:
+                logger.debug(f'Moving title of {group} to {position}')
+                self.undo_stack.push(commands.ChangeGroupStyle(
+                    [group], text='Move group title',
+                    title_position=position))
 
     def end_rubberband_mode(self):
         if self.rubberband_item.scene():
@@ -936,6 +1085,12 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 event.accept()
                 return
 
+        if (event.button() == Qt.MouseButton.LeftButton
+                and not event.modifiers()
+                and not self.edit_item and not self.crop_item
+                and self.start_group_interaction(event)):
+            return
+
         if event.button() == Qt.MouseButton.LeftButton:
             self.event_start = event.scenePos()
             self.last_move_delta = None
@@ -1031,7 +1186,8 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 and not self.items_locked):
             # Rename the group via its title
             self.select_items([item])
-            self.views()[0].rename_item(item)
+            self.activate_title(item, event.scenePos())
+            self.views()[0].edit_group_title_style(item)
             return
         if item and hierarchy.is_user_item(item):
             target = self.effective_item(item)
@@ -1061,6 +1217,14 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         super().mouseDoubleClickEvent(event)
 
     def mouseMoveEvent(self, event):
+        if self.active_mode == self.TITLE_RESIZE_MODE:
+            self.update_title_resize(event.scenePos())
+            event.accept()
+            return
+        if self.active_mode == self.TITLE_MODE:
+            self.update_title_drag(event.scenePos())
+            event.accept()
+            return
         if self.active_mode == self.RUBBERBAND_MODE:
             if not self.rubberband_item.scene():
                 logger.debug('Activating rubberband selection')
@@ -1109,6 +1273,21 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         return QtCore.QPointF(delta)
 
     def mouseReleaseEvent(self, event):
+        if self.active_mode == self.TITLE_RESIZE_MODE:
+            self.end_title_resize(apply=True)
+            event.accept()
+            return
+        if self.active_mode == self.TITLE_MODE:
+            group, clicked = self.title_group, self.title_ghost is None
+            was_active = self.title_was_active
+            self.end_title_drag(apply=True)
+            if clicked and group is not None:
+                # First click selects the title, the next one puts the
+                # text cursor
+                self.activate_title(group, event.scenePos(),
+                                    edit=was_active)
+            event.accept()
+            return
         if self.active_mode == self.RUBBERBAND_MODE:
             self.end_rubberband_mode()
         if self.is_moving_items():
@@ -1219,6 +1398,9 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             + items_in_order(
                 [i for i in selected if i not in self.selection_history]))
         self.close_unused_groups()
+        if (self.title_active is not None
+                and not self.title_active.isSelected()):
+            self.clear_title_active()
         if self.has_multi_selection():
             self.multi_select_item.fit_selection_area(
                 self.itemsBoundingRect(selection_only=True))

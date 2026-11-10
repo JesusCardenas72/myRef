@@ -1197,6 +1197,82 @@ class BeeErrorItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         clipboard.setText(self.toPlainText())
 
 
+_gear_path = None
+
+
+def gear_path():
+    """The outline of a gear with radius 1, around the origin."""
+
+    global _gear_path
+    if _gear_path is None:
+        path = QtGui.QPainterPath()
+        teeth = 8
+        step = 2 * math.pi / teeth
+        inner, outer = 0.74, 1.0
+        points = []
+        for i in range(teeth):
+            for fraction, radius in ((0, inner), (0.14, outer),
+                                     (0.36, outer), (0.5, inner)):
+                angle = (i + fraction) * step
+                points.append(QtCore.QPointF(
+                    radius * math.cos(angle), radius * math.sin(angle)))
+        path.addPolygon(QtGui.QPolygonF(points))
+        path.closeSubpath()
+        path.addEllipse(QtCore.QPointF(0, 0), 0.34, 0.34)
+        path.setFillRule(Qt.FillRule.OddEvenFill)
+        _gear_path = path
+    return _gear_path
+
+
+class TitleGhostItem(QtWidgets.QGraphicsItem):
+    """Shows where a group's title would end up while it is dragged."""
+
+    def __init__(self, group):
+        super().__init__()
+        self.group = group
+        self.position = group.style['title_position']
+        self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        self.setZValue(1e6)
+        self.setParentItem(group)
+
+    def set_position(self, position):
+        if position != self.position:
+            self.prepareGeometryChange()
+            self.position = position
+            self.update()
+
+    def boundingRect(self):
+        return self.group.bounding_rect_unselected()
+
+    def paint(self, painter, option, widget):
+        rect = self.group.title_text_rect(self.position)
+        if rect.isNull():
+            return
+        rect = rect.adjusted(-3, -2, 3, 2)
+        color = QtGui.QColor(*COLORS['Scene:Selection'])
+        pen = QtGui.QPen(color)
+        pen.setCosmetic(True)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.setPen(pen)
+        fill = QtGui.QColor(color)
+        fill.setAlpha(40)
+        painter.setBrush(fill)
+        painter.drawRect(rect)
+        frame, transform = self.group.title_frame(self.position)
+        painter.save()
+        painter.setTransform(transform, True)
+        painter.setFont(group_style.title_font(self.group.style))
+        text_color = QtGui.QColor(self.group.style['title_color'])
+        text_color.setAlpha(120)
+        painter.setPen(text_color)
+        text_frame = self.group.title_text_frame(self.position)
+        painter.drawText(
+            text_frame, Qt.AlignmentFlag.AlignLeft
+            | Qt.AlignmentFlag.AlignVCenter, self.group.elided_title(
+                self.position))
+        painter.restore()
+
+
 @register_item
 class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
     """A group of items, drawn as a coloured area behind its children.
@@ -1212,12 +1288,22 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
     PADDING = 10
     #: Height of the title band relative to the title's font size
     TITLE_LINE_HEIGHT = 1.4
+    #: Size of the settings icon (gear) in scene units
+    GEAR_SIZE = 20
+    #: Size of the title's resize handles on the screen
+    HANDLE_PIXELS = 9
 
     def __init__(self, **kwargs):
         super().__init__()
         self.save_id = None
         self.is_image = False
         self.is_open = False
+        #: Set while the title is edited in a text field
+        self.editing_title = False
+        #: The text typed so far while the title is edited
+        self.editing_text = None
+        #: The title is selected: it shows handles for resizing it
+        self.title_active = False
         self.color = None
         self.style = group_style.default_style()
         self._border_cache = None
@@ -1277,12 +1363,18 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         return QtCore.QRectF(self._rect)
 
     def title_text(self):
+        if self.editing_title and self.editing_text is not None:
+            return self.editing_text or ' '
         return self.display_name()
 
     def title_height(self):
         if group_style.title_font(self.style) is None:
             return 0
         return self.style['title_size'] * self.TITLE_LINE_HEIGHT
+
+    def title_side(self, position=None):
+        return group_style.title_side(
+            position or self.style['title_position'])
 
     def margins(self):
         """Space around the children: (left, top, right, bottom).
@@ -1293,7 +1385,40 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         """
 
         side = self.PADDING + group_style.border_inset(self.style)
-        return (side, side + self.title_height(), side, side)
+        left = top = right = bottom = side
+        height = self.title_height()
+        title_side = self.title_side()
+        if title_side == 'top':
+            top += height
+        elif title_side == 'bottom':
+            bottom += height
+        elif title_side == 'left':
+            left += height
+        else:
+            right += height
+        return (left, top, right, bottom)
+
+    def gear_size(self):
+        """Side length of the settings icon in the corner."""
+
+        rect = self._rect
+        return max(0, min(self.GEAR_SIZE, rect.width() / 4,
+                          rect.height() / 4))
+
+    def gear_rect(self):
+        """Where the settings icon is, in item coordinates (bottom
+        right corner)."""
+
+        inset = group_style.border_inset(self.style) + 2
+        size = self.gear_size()
+        return QtCore.QRectF(self._rect.right() - inset - size,
+                             self._rect.bottom() - inset - size,
+                             size, size)
+
+    def gear_contains(self, pos):
+        rect = self.gear_rect()
+        return (not self._rect.isNull() and rect.width() > 0
+                and rect.adjusted(-2, -2, 2, 2).contains(pos))
 
     def children_rect(self):
         """The area of all children plus margins, in item coordinates."""
@@ -1326,27 +1451,166 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
             item.update_flags()
         self.update()
 
-    def title_rect(self):
-        """Where the title is drawn, in item coordinates."""
+    def title_frame(self, position=None):
+        """Where the title line is, as ``(rect, transform)``.
 
+        The title is laid out horizontally in ``rect``; ``transform``
+        maps that to item coordinates. On the left and right side the
+        title runs along the edge (rotated by 90 degrees).
+        """
+
+        position = position or self.style['title_position']
+        side = group_style.title_side(position)
         border = group_style.border_inset(self.style)
-        rect = self._rect.adjusted(
-            border + self.PADDING, border + self.PADDING / 2,
-            -border - self.PADDING, 0)
-        rect.setHeight(self.title_height())
-        return rect
+        pad = self.PADDING
+        height = self.title_height()
+        rect = self._rect
+        # The gear takes the end of the bottom and right title lines
+        gear = self.GEAR_SIZE + 4
+        transform = QtGui.QTransform()
+        if side in ('top', 'bottom'):
+            frame = QtCore.QRectF(
+                rect.left() + border + pad, 0,
+                rect.width() - 2 * (border + pad), height)
+            if side == 'top':
+                frame.moveTop(rect.top() + border + pad / 2)
+            else:
+                frame.moveTop(rect.bottom() - border - pad / 2 - height)
+                frame.setRight(frame.right() - gear)
+        else:
+            length = rect.height() - 2 * (border + pad)
+            if side == 'left':
+                transform.translate(rect.left() + border + pad / 2,
+                                    rect.bottom() - border - pad)
+                transform.rotate(-90)
+            else:
+                length -= gear
+                transform.translate(rect.right() - border - pad / 2,
+                                    rect.top() + border + pad)
+                transform.rotate(90)
+            frame = QtCore.QRectF(0, 0, length, height)
+        return frame, transform
 
-    def title_contains(self, pos):
-        """Whether the given point (item coordinates) is on the
-        title's band (the whole width of the group, so that short
-        titles are easy to hit, too)."""
+    def title_rect(self, position=None):
+        """The band the title is in, in item coordinates."""
+
+        frame, transform = self.title_frame(position)
+        return transform.mapRect(frame)
+
+    def title_text_frame(self, position=None, text=None):
+        """The part of the title frame that the text takes."""
+
+        frame, _transform = self.title_frame(position)
+        font = group_style.title_font(self.style)
+        if font is None:
+            return QtCore.QRectF()
+        if text is None:
+            text = self.elided_title(position)
+        width = min(QtGui.QFontMetricsF(font).horizontalAdvance(text),
+                    frame.width())
+        result = QtCore.QRectF(frame)
+        result.setWidth(width)
+        alignment = group_style.title_alignment(
+            position or self.style['title_position'])
+        if alignment == 'center':
+            result.moveLeft(frame.left() + (frame.width() - width) / 2)
+        elif alignment == 'right':
+            result.moveRight(frame.right())
+        return result
+
+    def title_text_rect(self, position=None, text=None):
+        """The area of the title's text, in item coordinates."""
 
         if group_style.title_font(self.style) is None:
+            return QtCore.QRectF()
+        frame = self.title_text_frame(position, text)
+        return self.title_frame(position)[1].mapRect(frame)
+
+    def title_contains(self, pos):
+        """Whether the given point (item coordinates) is on the text
+        of the title."""
+
+        if group_style.title_font(self.style) is None or self.editing_title:
             return False
-        rect = self.title_rect()
-        rect.setLeft(self._rect.left())
-        rect.setRight(self._rect.right())
-        return rect.contains(pos)
+        rect = self.title_text_rect()
+        return rect.adjusted(-3, -3, 3, 3).contains(pos)
+
+    def handle_size(self):
+        """Side of the title's handles in scene units (they have a
+        fixed size on the screen)."""
+
+        scale = 1
+        scene = self.scene()
+        if scene and scene.views():
+            transform = self.deviceTransform(
+                scene.views()[0].viewportTransform())
+            scale = max(math.hypot(transform.m11(), transform.m12()),
+                        0.0001)
+        return self.HANDLE_PIXELS / scale
+
+    def title_handle_rects(self):
+        """The handles at the corners of the title: {corner: rect}, in
+        item coordinates."""
+
+        rect = self.title_text_rect().adjusted(-6, -6, 6, 6)
+        size = self.handle_size()
+        corners = {'tl': rect.topLeft(), 'tr': rect.topRight(),
+                   'bl': rect.bottomLeft(), 'br': rect.bottomRight()}
+        return {key: QtCore.QRectF(p.x() - size / 2, p.y() - size / 2,
+                                   size, size)
+                for key, p in corners.items()}
+
+    def title_handle_at(self, pos):
+        """The corner whose handle is at pos (item coordinates), if
+        any."""
+
+        if not self.title_active:
+            return None
+        if group_style.title_font(self.style) is None:
+            return None
+        for key, rect in self.title_handle_rects().items():
+            if rect.adjusted(-2, -2, 2, 2).contains(pos):
+                return key
+        return None
+
+    def paint_title_handles(self, painter):
+        if (not self.title_active
+                or group_style.title_font(self.style) is None):
+            return
+        color = QtGui.QColor(*COLORS['Scene:Selection'])
+        pen = QtGui.QPen(color)
+        pen.setCosmetic(True)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        painter.save()
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QBrush())
+        painter.drawRect(self.title_text_rect().adjusted(-3, -3, 3, 3))
+        pen.setStyle(Qt.PenStyle.SolidLine)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QColor(255, 255, 255))
+        for rect in self.title_handle_rects().values():
+            painter.drawRect(rect)
+        painter.restore()
+
+    def title_position_at(self, pos):
+        """The title position that is nearest to the given point (item
+        coordinates): The corners and the middle of each side."""
+
+        rect = self._rect
+        center = rect.center()
+        anchors = {
+            'top_left': rect.topLeft(),
+            'top_center': QtCore.QPointF(center.x(), rect.top()),
+            'top_right': rect.topRight(),
+            'middle_left': QtCore.QPointF(rect.left(), center.y()),
+            'middle_right': QtCore.QPointF(rect.right(), center.y()),
+            'bottom_left': rect.bottomLeft(),
+            'bottom_center': QtCore.QPointF(center.x(), rect.bottom()),
+            'bottom_right': rect.bottomRight(),
+        }
+        return min(anchors, key=lambda key: (
+            (anchors[key].x() - pos.x()) ** 2
+            + (anchors[key].y() - pos.y()) ** 2))
 
     def border_path(self):
         """The outline of the border (the middle of the border
@@ -1380,25 +1644,49 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         painter.setBrush(QtGui.QBrush())
         painter.drawPath(self.border_path())
 
-    def elided_title(self):
+    def elided_title(self, position=None):
         """The title, shortened with an ellipsis if it doesn't fit."""
 
         font = group_style.title_font(self.style)
-        rect = self.title_rect()
-        if font is None or rect.width() <= 0:
+        width = self.title_frame(position)[0].width()
+        if font is None or width <= 0:
             return ''
         return QtGui.QFontMetricsF(font).elidedText(
-            self.title_text(), Qt.TextElideMode.ElideRight, rect.width())
+            self.title_text(), Qt.TextElideMode.ElideRight, width)
 
     def paint_title(self, painter):
+        if self.editing_title:
+            return
         text = self.elided_title()
         if not text:
             return
+        transform = self.title_frame()[1]
+        painter.save()
+        painter.setTransform(transform, True)
         painter.setFont(group_style.title_font(self.style))
         painter.setPen(QtGui.QColor(self.style['title_color']))
         painter.drawText(
-            self.title_rect(), Qt.AlignmentFlag.AlignRight
-            | Qt.AlignmentFlag.AlignVCenter, text)
+            self.title_text_frame(text=text),
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            text)
+        painter.restore()
+
+    def paint_gear(self, painter):
+        """The semi-transparent settings icon in the corner."""
+
+        rect = self.gear_rect()
+        if rect.width() <= 0:
+            return
+        painter.save()
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.translate(rect.center())
+        painter.scale(rect.width() / 2, rect.height() / 2)
+        pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 90))
+        pen.setCosmetic(True)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QColor(255, 255, 255, 110))
+        painter.drawPath(gear_path())
+        painter.restore()
 
     def paint(self, painter, option, widget):
         if self._rect.isNull():
@@ -1406,6 +1694,10 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         self.paint_background(painter)
         self.paint_border(painter)
         self.paint_title(painter)
+        if widget is not None:
+            # Not when rendering for export
+            self.paint_gear(painter)
+            self.paint_title_handles(painter)
         if self.is_open:
             pen = QtGui.QPen(QtGui.QColor(*COLORS['Scene:Selection']))
             pen.setCosmetic(True)

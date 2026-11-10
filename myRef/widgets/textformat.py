@@ -22,6 +22,7 @@ from PyQt6.QtCore import Qt
 
 from myRef import textformat
 from myRef.i18n import _
+from myRef.widgets.dragspin import DragSpinBox
 
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ class TextFormatToolbar(QtWidgets.QFrame):
         self.font_box.setMaximumWidth(150)
         self.font_box.textActivated.connect(self.on_font_family)
         layout.addWidget(self.font_box)
-        self.size_box = QtWidgets.QSpinBox()
+        self.size_box = DragSpinBox()
         self.size_box.setRange(4, 400)
         self.size_box.setKeyboardTracking(False)
         self.size_box.setMinimumWidth(52)

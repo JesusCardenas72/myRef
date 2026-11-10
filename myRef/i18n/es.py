@@ -110,6 +110,18 @@ TRANSLATIONS = {
     'Title color:': 'Color del título:',
     'No title': 'Sin título',
     'Title size:': 'Tamaño del título:',
+    'Title:': 'Título:',
+    'Title Text': 'Texto del título',
+    'Font:': 'Fuente:',
+    'Title position:': 'Posición del título:',
+    'Top left': 'Arriba a la izquierda',
+    'Top center': 'Arriba en el centro',
+    'Top right': 'Arriba a la derecha',
+    'Left side': 'Lado izquierdo',
+    'Right side': 'Lado derecho',
+    'Bottom left': 'Abajo a la izquierda',
+    'Bottom center': 'Abajo en el centro',
+    'Bottom right': 'Abajo a la derecha',
     '&Parent to First Selected': '&Emparentar con el primero seleccionado',
     'U&nparent': 'Desemparen&tar',
     '&Lock': '&Bloquear',
@@ -206,6 +218,14 @@ TRANSLATIONS = {
     '&Focus Canvas': 'Enfocar &lienzo',
     '&Optimize Canvas': '&Optimizar lienzo',
     '&Canvas': 'Lien&zo',
+    '&Shortcuts': '&Atajos',
+    'Double-click a shortcut to change it. The defaults are the '
+    'PureRef shortcuts.': 'Haz doble clic en un atajo para cambiarlo. '
+    'Los atajos por defecto son los de PureRef.',
+    'Restore Shortcut Defaults': 'Restablecer atajos',
+    'Do you want to restore all keyboard shortcuts to their '
+    'default values?': '¿Quieres restablecer todos los atajos de teclado '
+    'a sus valores predeterminados?',
     'Grid Size:': 'Tamaño de la cuadrícula:',
     ('Distance between the grid lines at 100% zoom. When zoomed '
      'out, the grid gets coarser.'):
@@ -218,14 +238,6 @@ TRANSLATIONS = {
     'Snap Distance:': 'Distancia de imantado:',
     ('How close items have to get to the edges of other items '
      'to snap to them, in screen pixels. Hold Alt while moving '
-    '&Shortcuts': '&Atajos',
-    'Double-click a shortcut to change it. The defaults are the '
-    'PureRef shortcuts.': 'Haz doble clic en un atajo para cambiarlo. '
-    'Los atajos por defecto son los de PureRef.',
-    'Restore Shortcut Defaults': 'Restablecer atajos',
-    'Do you want to restore all keyboard shortcuts to their '
-    'default values?': '¿Quieres restablecer todos los atajos de teclado '
-    'a sus valores predeterminados?',
      'to not snap.'):
     ('Cuánto tienen que acercarse los elementos a los bordes de otros '
      'para imantarse a ellos, en píxeles de pantalla. Mantén Alt al '

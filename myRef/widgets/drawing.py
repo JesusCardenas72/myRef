@@ -24,6 +24,7 @@ from PyQt6.QtCore import Qt
 from myRef import commands
 from myRef import drawing
 from myRef.i18n import _
+from myRef.widgets.dragspin import DragDoubleSpinBox
 
 
 logger = logging.getLogger(__name__)
@@ -270,7 +271,7 @@ class DrawToolbar(QtWidgets.QFrame):
         self.color_button.clicked.connect(self.on_color)
         layout.addWidget(self.color_button)
 
-        self.width_box = QtWidgets.QDoubleSpinBox()
+        self.width_box = DragDoubleSpinBox()
         self.width_box.setRange(0.5, 200)
         self.width_box.setDecimals(1)
         self.width_box.setMinimumWidth(72)

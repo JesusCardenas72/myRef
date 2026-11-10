@@ -22,6 +22,7 @@ from PyQt6.QtCore import Qt
 from myRef import constants, commands
 from myRef.config import logfile_name
 from myRef.i18n import _, current_language
+from myRef.widgets.dragspin import DragSpinBox
 from myRef.widgets import (  # noqa: F401
     controls,
     settings,
@@ -158,7 +159,7 @@ class SceneToPixmapExporterDialog(QtWidgets.QDialog):
 
         width_label = QtWidgets.QLabel(_('Width:'))
         layout.addWidget(width_label, 0, 0)
-        self.width_input = QtWidgets.QSpinBox()
+        self.width_input = DragSpinBox()
         self.width_input.setRange(self.MIN_SIZE, self.MAX_SIZE)
         self.width_input.setValue(default_size.width())
         self.width_input.valueChanged.connect(self.on_width_changed)
@@ -166,7 +167,7 @@ class SceneToPixmapExporterDialog(QtWidgets.QDialog):
 
         height_label = QtWidgets.QLabel(_('Height:'))
         layout.addWidget(height_label, 1, 0)
-        self.height_input = QtWidgets.QSpinBox()
+        self.height_input = DragSpinBox()
         self.height_input.setMinimum(10)
         self.height_input.setRange(self.MIN_SIZE, self.MAX_SIZE)
         self.height_input.setValue(default_size.height())

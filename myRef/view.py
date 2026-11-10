@@ -93,6 +93,8 @@ class BeeGraphicsView(MainControlsMixin,
         self.right_gesture_start = None
         self.right_gesture_moved = False
         self.hierarchy_dock = None
+        self.title_editor = None
+        self.title_panel = None
         self.text_toolbar = None
         self.draw_session = None
         self.draw_toolbar = None
@@ -190,7 +192,9 @@ class BeeGraphicsView(MainControlsMixin,
             self.welcome_overlay.show()
             self.actiongroup_set_enabled('active_when_items_in_scene', False)
         else:
-            self.setFocus()
+            if self.title_editor is None:
+                # Don't take the focus from the title being edited
+                self.setFocus()
             self.welcome_overlay.clearFocus()
             self.welcome_overlay.hide()
             self.actiongroup_set_enabled('active_when_items_in_scene', True)
@@ -579,9 +583,57 @@ class BeeGraphicsView(MainControlsMixin,
             self.rename_item(group)
 
     def on_action_group_style(self):
-        groups = self.scene.target_groups()
+        self.edit_group_style(self.scene.target_groups())
+
+    def edit_group_style(self, groups):
+        """Open the settings of the given groups; changes show up in
+        the scene right away."""
+
         if groups:
             widgets.groups.GroupStyleDialog(self, groups, self.undo_stack)
+
+    def edit_group_title_style(self, group):
+        """Show the text options of a group's title."""
+
+        self.close_title_panel()
+        self.title_panel = widgets.groups.GroupTitlePanel(
+            self, group, self.undo_stack)
+
+    def close_title_editing(self):
+        """Apply the edited title and close the text options."""
+
+        if self.title_editor is not None:
+            self.title_editor.finish()
+        self.close_title_panel()
+
+    def close_title_panel(self):
+        panel, self.title_panel = self.title_panel, None
+        if panel is not None:
+            panel.close()
+
+    def flush_title_panel(self):
+        if self.title_panel is not None:
+            self.title_panel.flush()
+
+    def refresh_title_panel(self):
+        if self.title_panel is not None:
+            self.title_panel.refresh()
+        if self.title_editor is not None:
+            self.title_editor.update_geometry()
+
+    def edit_group_title(self, group, scene_pos=None):
+        """Edit the title of a group in place; the cursor goes to
+        the given scene position, if any."""
+
+        if self.title_editor is not None:
+            self.title_editor.finish()
+        if group.title_height() <= 0:
+            return
+        click = None
+        if scene_pos is not None:
+            click = self.mapFromScene(scene_pos)
+        self.title_editor = widgets.groups.GroupTitleEditor(
+            self, group, click)
 
     def apply_to_group_contents(self, method, **kwargs):
         """Call the given scene method with the contents of each
@@ -1816,9 +1868,21 @@ class BeeGraphicsView(MainControlsMixin,
         self.scale_scene_on_resize(old_size, event.size(), old_center)
         self.recalc_scene_rect()
         self.welcome_overlay.resize(self.size())
+        if self.title_editor is not None:
+            self.title_editor.update_geometry()
         self.lock_button.update_position()
         if self.draw_toolbar and self.draw_toolbar.isVisible():
             self.draw_toolbar.update_position()
+
+    def event(self, event):
+        # Esc is also the shortcut for deselecting; while drawing or
+        # editing text it must reach keyPressEvent instead.
+        if (event.type() == QtCore.QEvent.Type.ShortcutOverride
+                and event.key() == Qt.Key.Key_Escape
+                and (self.draw_session or actions.active_context != 'global')):
+            event.accept()
+            return True
+        return super().event(event)
 
     def keyPressEvent(self, event):
         if self.keyPressEventMainControls(event):
@@ -1841,20 +1905,6 @@ def _scoped_callback(method, kwargs):
     return callback
 
 
-for _action_id, _method, _kwargs in actions.SCOPED_ACTIONS:
-    setattr(BeeGraphicsView,
-            f'on_action_{actions.scoped_id(_action_id)}',
-            _scoped_callback(_method, _kwargs))
-    def event(self, event):
-        # Esc is also the shortcut for deselecting; while drawing or
-        # editing text it must reach keyPressEvent instead.
-        if (event.type() == QtCore.QEvent.Type.ShortcutOverride
-                and event.key() == Qt.Key.Key_Escape
-                and (self.draw_session or actions.active_context != 'global')):
-            event.accept()
-            return True
-        return super().event(event)
-
 def _group_aware_callback(original, method, kwargs):
     """With a single group selected, the regular organizing actions
     (and thus their shortcuts) affect the group's contents."""
@@ -1868,6 +1918,10 @@ def _group_aware_callback(original, method, kwargs):
     return callback
 
 
+for _action_id, _method, _kwargs in actions.SCOPED_ACTIONS:
+    setattr(BeeGraphicsView,
+            f'on_action_{actions.scoped_id(_action_id)}',
+            _scoped_callback(_method, _kwargs))
     _name = f'on_action_{_action_id}'
     setattr(BeeGraphicsView, _name, _group_aware_callback(
         getattr(BeeGraphicsView, _name), _method, _kwargs))

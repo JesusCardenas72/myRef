@@ -307,16 +307,31 @@ class SceneToSVGExporter(SceneExporterBase):
 
         title = item.elided_title()
         if title:
-            rect = item.title_rect()
+            frame, title_transform = item.title_frame()
+            alignment = group_style.title_alignment(style['title_position'])
+            anchor, x = {
+                'left': ('start', frame.left()),
+                'center': ('middle', frame.center().x()),
+                'right': ('end', frame.right()),
+            }[alignment]
             font = group_style.title_font(style)
-            text = ET.Element('text', attrib={
-                'x': f'{rect.right():g}',
-                'y': f'{rect.center().y():g}',
-                'text-anchor': 'end',
+            attrib = {
+                'x': f'{x:g}',
+                'y': f'{frame.center().y():g}',
+                'text-anchor': anchor,
                 'dominant-baseline': 'central',
                 'style': (f'white-space:pre;font-size:{font.pixelSize()}px;'
-                          f'font-family:{", ".join(font.families())}'),
-                **self._svg_color(style['title_color'], 'fill')})
+                          f'font-family:{", ".join(font.families())};'
+                          f'font-weight:{"bold" if font.bold() else "normal"};'
+                          f'font-style:{"italic" if font.italic() else "normal"}'),
+                **self._svg_color(style['title_color'], 'fill')}
+            if not title_transform.isIdentity():
+                t = title_transform
+                attrib['transform'] = 'matrix({})'.format(' '.join(
+                    f'{round(v, 6):g}' for v in (
+                        t.m11(), t.m12(), t.m21(), t.m22(),
+                        t.dx(), t.dy())))
+            text = ET.Element('text', attrib=attrib)
             text.text = title
             element.append(text)
         return element

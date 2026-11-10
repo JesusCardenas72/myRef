@@ -49,6 +49,13 @@ BORDER_SHAPES = {
                    (1, 0)],
 }
 
+#: Where the title can be: corners and the middle of each side
+TITLE_POSITIONS = (
+    'top_left', 'top_center', 'top_right',
+    'middle_left', 'middle_right',
+    'bottom_left', 'bottom_center', 'bottom_right',
+)
+
 DEFAULTS = {
     'border_color': '#ff969696',
     'border_width': 2.0,
@@ -58,6 +65,10 @@ DEFAULTS = {
     'border_wavelength': 30.0,
     'title_color': '#ffc8c8c8',
     'title_size': 14.0,
+    'title_position': 'top_right',
+    'title_family': '',
+    'title_bold': False,
+    'title_italic': False,
 }
 
 STYLE_KEYS = tuple(DEFAULTS)
@@ -97,6 +108,13 @@ def clean_value(key, value):
         result = _number(value, MAX_BORDER_WIDTH)
     elif key == 'title_size':
         result = _number(value, MAX_TITLE_SIZE)
+    elif key == 'title_family':
+        result = (value if isinstance(value, str) and len(value) <= 200
+                  else None)
+    elif key in ('title_bold', 'title_italic'):
+        result = value if isinstance(value, bool) else None
+    elif key == 'title_position':
+        result = value if value in TITLE_POSITIONS else None
     elif key == 'border_style':
         result = value if value in BORDER_STYLES else None
     elif key == 'border_shape':
@@ -220,6 +238,24 @@ def svg_dasharray(style):
     return ' '.join(f'{v * width:g}' for v in pattern)
 
 
+def title_side(position):
+    """The side of the group a title position belongs to: 'top',
+    'bottom', 'left' or 'right'."""
+
+    if position.startswith('middle_'):
+        return position[len('middle_'):]
+    return position.split('_')[0]
+
+
+def title_alignment(position):
+    """Where the title sits along its side: 'left', 'center' or
+    'right' (the start, middle or end of the title's line)."""
+
+    if position.startswith('middle_'):
+        return 'center'
+    return position.split('_')[1]
+
+
 def border_pen(style):
     """The pen for the group's border, or None if there's no border."""
 
@@ -244,5 +280,9 @@ def title_font(style):
     if size < 1:
         return None
     font = QtGui.QFont()
+    if style['title_family']:
+        font.setFamily(style['title_family'])
+    font.setBold(style['title_bold'])
+    font.setItalic(style['title_italic'])
     font.setPixelSize(round(size))
     return font

@@ -124,17 +124,25 @@ def main():
     app.setPalette(palette)
     bee = myRefMainWindow(app)  # NOQA:F841
 
+    devreload = None
+    if os.environ.get('MYREF_DEV_RELOAD'):
+        from myRef import devreload
+        devreload.install(bee)
+
     signal.signal(signal.SIGINT, handle_sigint)
     # Repeatedly run python-noop to give the interpreter time to
     # handle signals
     safe_timer(50, lambda: None)
 
-    app.exec()
+    exit_code = app.exec()
     del bee
     del app
     logger.debug('myRef closed')
     QtCore.qInstallMessageHandler(None)
+    if devreload and devreload.restart_requested:
+        return devreload.RELOAD_EXIT_CODE
+    return exit_code
 
 
 if __name__ == '__main__':
-    main()  # pragma: no cover
+    sys.exit(main())  # pragma: no cover

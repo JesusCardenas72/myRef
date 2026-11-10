@@ -199,21 +199,21 @@ def test_group_title_action_renames_parent_group(view):
     assert group.name == ''
 
 
-def test_double_click_on_title_renames_group(view):
+def test_double_click_on_title_edits_title(view):
     a = make_image(view)
     group = make_group(view, [a])
     view.scene.clearSelection()
-    pos = group.mapToScene(group.title_rect().center())
-    with patch.object(view, 'rename_item') as rename:
+    pos = group.mapToScene(group.title_text_rect().center())
+    with patch.object(view, 'edit_group_title_style') as edit:
         view.scene.mouseDoubleClickEvent(mouse_event((pos.x(), pos.y())))
-        rename.assert_called_once_with(group)
+        edit.assert_called_once_with(group)
     assert not group.is_open
 
 
 def test_double_click_on_child_still_opens_group(view):
     a = make_image(view)
     group = make_group(view, [a])
-    with patch.object(view, 'rename_item') as rename:
+    with patch.object(view, 'edit_group_title_style') as rename:
         view.scene.mouseDoubleClickEvent(mouse_event((50, 40)))
         rename.assert_not_called()
     assert group.is_open
@@ -226,7 +226,7 @@ def test_double_click_on_hidden_title_does_not_rename(view):
     pos = group.mapToScene(QtCore.QPointF(
         group.bounding_rect_unselected().center().x(),
         group.bounding_rect_unselected().top() + 3))
-    with patch.object(view, 'rename_item') as rename:
+    with patch.object(view, 'edit_group_title_style') as rename:
         view.scene.mouseDoubleClickEvent(mouse_event((pos.x(), pos.y())))
         rename.assert_not_called()
 
@@ -310,3 +310,218 @@ def test_on_action_group_style_opens_dialog(view):
     with patch('myRef.widgets.groups.GroupStyleDialog') as dialog:
         view.on_action_group_style()
         dialog.assert_called_once_with(view, [group], view.undo_stack)
+
+
+def test_title_positions_margins_and_geometry(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    group.set_style(title_size=20, border_width=0)
+    th = 20 * group.TITLE_LINE_HEIGHT
+    pad = group.PADDING
+    for position in group_style.TITLE_POSITIONS:
+        group.set_style(title_position=position)
+        rect = group.bounding_rect_unselected()
+        band = group.title_rect()
+        text = group.title_text_rect()
+        assert rect.contains(band), position
+        assert band.adjusted(-0.01, -0.01, 0.01, 0.01).contains(text)
+        child = group.mapRectFromScene(a.sceneBoundingRect())
+        assert not band.intersects(child.adjusted(1, 1, -1, -1)), position
+        side = group_style.title_side(position)
+        left, top, right, bottom = group.margins()
+        expected = {'top': top, 'bottom': bottom,
+                    'left': left, 'right': right}[side]
+        assert expected == pytest.approx(pad + th)
+
+
+def test_drag_title_to_other_place_with_ghost(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    view.scene.clearSelection()
+    scene = view.scene
+    start = group.mapToScene(group.title_text_rect().center())
+    rect = group.bounding_rect_unselected()
+    target = group.mapToScene(rect.bottomLeft())
+    scene.mousePressEvent(mouse_event((start.x(), start.y())))
+    assert scene.active_mode == scene.TITLE_MODE
+    scene.mouseMoveEvent(mouse_event((target.x(), target.y())))
+    assert scene.title_ghost is not None
+    assert scene.title_ghost.position == 'bottom_left'
+    # Nothing changes until the mouse is released
+    assert group.style['title_position'] == 'top_right'
+    scene.mouseReleaseEvent(mouse_event((target.x(), target.y())))
+    assert scene.title_ghost is None
+    assert group.style['title_position'] == 'bottom_left'
+    view.undo_stack.undo()
+    assert group.style['title_position'] == 'top_right'
+
+
+def test_drag_title_middle_of_side(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    rect = group.bounding_rect_unselected()
+    assert group.title_position_at(
+        QtCore.QPointF(rect.left(), rect.center().y())) == 'middle_left'
+    assert group.title_position_at(
+        QtCore.QPointF(rect.center().x(), rect.bottom())) == 'bottom_center'
+
+
+def test_escape_cancels_title_drag(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    scene = view.scene
+    start = group.mapToScene(group.title_text_rect().center())
+    target = group.mapToScene(group.bounding_rect_unselected().bottomLeft())
+    scene.mousePressEvent(mouse_event((start.x(), start.y())))
+    scene.mouseMoveEvent(mouse_event((target.x(), target.y())))
+    scene.cancel_active_modes()
+    assert scene.title_ghost is None
+    assert group.style['title_position'] == 'top_right'
+
+
+def test_click_on_gear_opens_settings(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    view.scene.clearSelection()
+    pos = group.mapToScene(group.gear_rect().center())
+    with patch.object(view, 'edit_group_style') as edit:
+        view.scene.mousePressEvent(mouse_event((pos.x(), pos.y())))
+        edit.assert_called_once_with([group])
+    assert group.isSelected()
+    assert view.scene.active_mode is None
+
+
+def test_title_editor_renames_group(view):
+    from myRef.widgets.groups import GroupTitleEditor
+    a = make_image(view)
+    group = make_group(view, [a])
+    view.edit_group_title(group)
+    editor = view.title_editor
+    assert isinstance(editor, GroupTitleEditor)
+    assert group.editing_title
+    editor.setText('Refs')
+    editor.finish()
+    assert group.name == 'Refs'
+    assert not group.editing_title
+    assert view.title_editor is None
+    view.undo_stack.undo()
+    assert group.name == ''
+
+
+def test_title_editor_escape_discards(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    view.edit_group_title(group)
+    view.title_editor.setText('Refs')
+    view.title_editor.cancelled = True
+    view.title_editor.finish()
+    assert group.name == ''
+
+
+def test_style_dialog_changes_title_position_live(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    dialog = GroupStyleDialog(view, [group], view.undo_stack, show=False)
+    dialog.title_position_input.setCurrentIndex(
+        dialog.title_position_input.findData('bottom_center'))
+    assert group.style['title_position'] == 'bottom_center'
+    dialog.name_input.setText('Mine')
+    assert group.name == 'Mine'
+    dialog.accept()
+    assert group.name == 'Mine'
+    view.undo_stack.undo()
+    assert group.name == ''
+    assert group.style['title_position'] == 'top_right'
+
+
+def test_style_dialog_reject_restores_name(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    dialog = GroupStyleDialog(view, [group], view.undo_stack, show=False)
+    dialog.name_input.setText('Mine')
+    dialog.reject()
+    assert group.name == ''
+
+
+def test_click_on_title_activates_it_with_panel(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    view.scene.clearSelection()
+    scene = view.scene
+    pos = group.mapToScene(group.title_text_rect().center())
+    scene.mousePressEvent(mouse_event((pos.x(), pos.y())))
+    scene.mouseReleaseEvent(mouse_event((pos.x(), pos.y())))
+    assert scene.title_active is group
+    assert group.title_active
+    # No format window yet; double click opens it
+    assert view.title_panel is None
+    # The first click only selects the title; the next one puts the
+    # cursor
+    assert view.title_editor is None
+    scene.mousePressEvent(mouse_event((pos.x(), pos.y())))
+    scene.mouseReleaseEvent(mouse_event((pos.x(), pos.y())))
+    assert view.title_editor is not None
+    assert group.editing_title
+    view.title_editor.setText('Typed')
+    assert group.title_text() == 'Typed'
+    view.edit_group_title_style(group)
+    assert view.title_panel is not None
+    assert view.title_editor is not None
+    # Deselecting the group deactivates the title
+    scene.clearSelection()
+    assert scene.title_active is None
+    assert view.title_panel is None
+    assert view.title_editor is None
+    assert group.name == 'Typed'
+
+
+def test_title_panel_changes_text_undoable(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    view.edit_group_title_style(group)
+    panel = view.title_panel
+    panel.bold_input.setChecked(True)
+    panel.size_input.setValue(30)
+    assert group.style['title_bold'] and group.style['title_size'] == 30
+    view.close_title_panel()
+    assert group.style['title_bold']
+    view.undo_stack.undo()
+    assert not group.style['title_bold']
+    assert group.style['title_size'] == 14
+
+
+def test_resize_title_with_handle(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    scene = view.scene
+    pos = group.mapToScene(group.title_text_rect().center())
+    scene.mousePressEvent(mouse_event((pos.x(), pos.y())))
+    scene.mouseReleaseEvent(mouse_event((pos.x(), pos.y())))
+    handle = group.title_handle_rects()['tl'].center()
+    start = group.mapToScene(handle)
+    center = group.mapToScene(group.title_text_rect().center())
+    far = center + (start - center) * 2
+    scene.mousePressEvent(mouse_event((start.x(), start.y())))
+    assert scene.active_mode == scene.TITLE_RESIZE_MODE
+    scene.mouseMoveEvent(mouse_event((far.x(), far.y())))
+    assert group.style['title_size'] == pytest.approx(28, rel=0.05)
+    scene.mouseReleaseEvent(mouse_event((far.x(), far.y())))
+    assert scene.active_mode is None
+    view.undo_stack.undo()
+    assert group.style['title_size'] == 14
+
+
+def test_title_panel_changes_show_in_editor(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    view.edit_group_title(group)
+    view.edit_group_title_style(group)
+    editor = view.title_editor
+    old_width = editor.width()
+    view.title_panel.size_input.setValue(40)
+    view.title_panel.bold_input.setChecked(True)
+    assert editor.font().pixelSize() >= 40
+    assert editor.font().bold()
+    assert editor.width() > old_width
+    view.title_panel.color_input.set_color('#ffff0000')
+    assert 'ff0000' in editor.styleSheet()
