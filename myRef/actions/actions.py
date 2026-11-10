@@ -779,10 +779,52 @@ actions = BeeActionList([
         group='active_when_selection',
     ),
     Action(
+        id='add_to_group',
+        text='&Add to Group',
+        callback='on_action_add_to_group',
+        group='active_when_selection',
+    ),
+    Action(
+        id='remove_from_group',
+        text='&Remove from Group',
+        callback='on_action_remove_from_group',
+        group='active_when_selection',
+    ),
+    Action(
+        id='group_enter',
+        text='&Enter Group',
+        callback='on_action_group_enter',
+        group='active_when_group',
+    ),
+    Action(
+        id='group_exit',
+        text='E&xit Group',
+        callback='on_action_group_exit',
+        group='active_when_selection',
+    ),
+    Action(
+        id='group_title',
+        text='Group &Title...',
+        callback='on_action_group_title',
+        group='active_when_group',
+    ),
+    Action(
+        id='group_style',
+        text='Group &Style...',
+        callback='on_action_group_style',
+        group='active_when_group',
+    ),
+    Action(
         id='group_color',
         text='Group &Color...',
         callback='on_action_group_color',
-        group='active_when_selection',
+        group='active_when_group',
+    ),
+    Action(
+        id='group_opacity',
+        text='Group O&pacity...',
+        callback='on_action_group_opacity',
+        group='active_when_group',
     ),
     Action(
         id='parent_items',
@@ -1053,3 +1095,49 @@ actions = BeeActionList([
         callback='on_action_open_settings_dir',
     ),
 ])
+
+
+#: Organizing actions that also exist for the contents of groups:
+#: (id of the global action, scene method, keyword arguments). For
+#: each, there's an action ``group_<id>`` in the Group menu that calls
+#: the scene method with ``items`` set to the group's contents.
+SCOPED_ACTIONS = [
+    ('arrange_optimal', 'arrange_optimal', {}),
+    ('arrange_horizontal', 'arrange', {}),
+    ('arrange_vertical', 'arrange', {'vertical': True}),
+    ('arrange_square', 'arrange_square', {}),
+    ('arrange_square_addition', 'arrange_square', {'order': 'addition'}),
+    ('arrange_square_random', 'arrange_square', {'order': 'random'}),
+    ('align_left', 'align', {'edge': 'left'}),
+    ('align_right', 'align', {'edge': 'right'}),
+    ('align_top', 'align', {'edge': 'top'}),
+    ('align_bottom', 'align', {'edge': 'bottom'}),
+    ('distribute_horizontal', 'distribute', {}),
+    ('distribute_vertical', 'distribute', {'vertical': True}),
+    ('stack', 'stack', {}),
+    ('normalize_height', 'normalize_height', {}),
+    ('normalize_width', 'normalize_width', {}),
+    ('normalize_size', 'normalize_size', {}),
+    ('normalize_longest_side', 'normalize_longest_side', {}),
+    ('normalize_scale', 'normalize_scale', {}),
+]
+
+
+def scoped_id(action_id):
+    return f'group_{action_id}'
+
+
+for _action_id, _method, _kwargs in SCOPED_ACTIONS:
+    actions[scoped_id(_action_id)] = Action(
+        id=scoped_id(_action_id),
+        text=actions[_action_id].text,
+        callback=f'on_action_{scoped_id(_action_id)}',
+        group='active_when_group',
+    )
+
+actions['group_focus'] = Action(
+    id='group_focus',
+    text='&Focus Group',
+    callback='on_action_group_focus',
+    group='active_when_group',
+)

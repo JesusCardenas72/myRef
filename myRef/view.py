@@ -43,7 +43,7 @@ from myRef import hierarchy
 from myRef import textformat
 from myRef import widgets
 from myRef.items import (
-    BeePixmapItem, BeeTextItem, BeeGroupItem, BeeDrawingItem,
+    BeePixmapItem, BeeTextItem, BeeDrawingItem,
     items_in_order)
 from myRef.main_controls import MainControlsMixin
 from myRef.scene import BeeGraphicsScene
@@ -552,14 +552,62 @@ class BeeGraphicsView(MainControlsMixin,
         self.scene.set_grayscale_canvas(checked)
 
     def on_action_group_items(self):
-        self.scene.group_selection()
+        if self.scene.group_selection():
+            widgets.BeeNotification(
+                self, _('Items in other groups have been left out'))
 
     def on_action_ungroup_items(self):
         self.scene.ungroup_selection()
 
+    def on_action_add_to_group(self):
+        if not self.scene.add_selection_to_group():
+            widgets.BeeNotification(
+                self, _('Select one group and the items to add to it'))
+
+    def on_action_remove_from_group(self):
+        self.scene.remove_selection_from_group()
+
+    def on_action_group_enter(self):
+        self.scene.enter_group()
+
+    def on_action_group_exit(self):
+        self.scene.exit_group()
+
+    def on_action_group_title(self):
+        group = self.scene.target_group()
+        if group is not None:
+            self.rename_item(group)
+
+    def on_action_group_style(self):
+        groups = self.scene.target_groups()
+        if groups:
+            widgets.groups.GroupStyleDialog(self, groups, self.undo_stack)
+
+    def apply_to_group_contents(self, method, **kwargs):
+        """Call the given scene method with the contents of each
+        target group, in one undo step."""
+
+        groups = self.scene.target_groups()
+        if len(groups) > 1:
+            self.undo_stack.beginMacro('Organize group contents')
+        for group in groups:
+            getattr(self.scene, method)(
+                items=self.scene.group_contents(group), **kwargs)
+        if len(groups) > 1:
+            self.undo_stack.endMacro()
+
+    def on_action_group_focus(self):
+        groups = self.scene.target_groups()
+        if groups:
+            self.fit_rect(self.scene.itemsBoundingRect(items=groups))
+
+    def on_action_group_opacity(self):
+        groups = self.scene.target_groups()
+        if groups:
+            widgets.ChangeOpacityDialog(self, groups, self.undo_stack)
+
     def on_action_group_color(self):
-        groups = [item for item in self.scene.selected_top_items()
-                  if isinstance(item, BeeGroupItem)]
+        groups = self.scene.target_groups()
         if not groups:
             return
         color = QtWidgets.QColorDialog.getColor(
@@ -603,9 +651,10 @@ class BeeGraphicsView(MainControlsMixin,
 
     def on_action_rename_item(self):
         items = self.scene.selectedItems(user_only=True)
-        if not items:
-            return
-        item = items[0]
+        if items:
+            self.rename_item(items[0])
+
+    def rename_item(self, item):
         name, ok = QtWidgets.QInputDialog.getText(
             self, _('Rename'), _('Name:'), text=item.display_name())
         if ok:
@@ -1415,6 +1464,8 @@ class BeeGraphicsView(MainControlsMixin,
                                      self.scene.has_selection())
         self.actiongroup_set_enabled('active_when_single_image',
                                      self.scene.has_single_image_selection())
+        self.actiongroup_set_enabled('active_when_group',
+                                     bool(self.scene.target_groups()))
         self.update_text_actions()
 
         if self.scene.has_selection():
@@ -1782,3 +1833,15 @@ class BeeGraphicsView(MainControlsMixin,
             event.accept()
             return
         super().keyPressEvent(event)
+
+
+def _scoped_callback(method, kwargs):
+    def callback(self):
+        self.apply_to_group_contents(method, **kwargs)
+    return callback
+
+
+for _action_id, _method, _kwargs in actions.SCOPED_ACTIONS:
+    setattr(BeeGraphicsView,
+            f'on_action_{actions.scoped_id(_action_id)}',
+            _scoped_callback(_method, _kwargs))

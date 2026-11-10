@@ -23,7 +23,7 @@ from xml.etree import ElementTree as ET
 from PyQt6 import QtCore, QtGui
 
 from .errors import BeeFileIOError
-from myRef import constants, drawing, hierarchy, widgets
+from myRef import constants, drawing, group_style, hierarchy, widgets
 from myRef.i18n import _
 from myRef.items import BeePixmapItem, items_in_order
 
@@ -249,11 +249,77 @@ class SceneToSVGExporter(SceneExporterBase):
         group = ET.Element('g', attrib={
             'transform': 'matrix({})'.format(
                 ' '.join(f'{round(v, 6):g}' for v in values)),
-            'opacity': str(item.opacity())})
+            'opacity': str(item.effectiveOpacity())})
         for shape in item.shapes:
             group.append(ET.Element('path',
                                     attrib=drawing.svg_attributes(shape)))
         return group
+
+    @staticmethod
+    def _svg_color(color, prefix):
+        """SVG attributes for a color with alpha."""
+
+        color = QtGui.QColor(color)
+        return {prefix: color.name(QtGui.QColor.NameFormat.HexRgb),
+                f'{prefix}-opacity': f'{color.alphaF():g}'}
+
+    def _get_group_element(self, item, offset):
+        """An SVG group with background, border and title of a group.
+
+        The group's children are exported as separate elements.
+        """
+
+        transform = item.sceneTransform() * QtGui.QTransform.fromTranslate(
+            -offset.x(), -offset.y())
+        values = [transform.m11(), transform.m12(), transform.m21(),
+                  transform.m22(), transform.dx(), transform.dy()]
+        element = ET.Element('g', attrib={
+            'transform': 'matrix({})'.format(
+                ' '.join(f'{round(v, 6):g}' for v in values)),
+            'opacity': f'{item.effectiveOpacity():g}'})
+        style = item.style
+        has_border = style['border_width'] > 0
+        path_data = group_style.svg_path_data(item.border_path())
+
+        background = self._svg_color(item.background_color(), 'fill')
+        if group_style.is_wavy(style) and has_border:
+            element.append(ET.Element(
+                'path', attrib={'d': path_data, **background}))
+        else:
+            rect = item.bounding_rect_unselected()
+            element.append(ET.Element('rect', attrib={
+                'x': f'{rect.x():g}', 'y': f'{rect.y():g}',
+                'width': f'{rect.width():g}',
+                'height': f'{rect.height():g}', **background}))
+
+        if has_border:
+            attrib = {
+                'd': path_data,
+                'fill': 'none',
+                'stroke-width': f'{style["border_width"]:g}',
+                'stroke-linejoin': ('round' if group_style.is_wavy(style)
+                                    else 'miter'),
+                **self._svg_color(style['border_color'], 'stroke')}
+            dasharray = group_style.svg_dasharray(style)
+            if dasharray:
+                attrib['stroke-dasharray'] = dasharray
+            element.append(ET.Element('path', attrib=attrib))
+
+        title = item.elided_title()
+        if title:
+            rect = item.title_rect()
+            font = group_style.title_font(style)
+            text = ET.Element('text', attrib={
+                'x': f'{rect.right():g}',
+                'y': f'{rect.center().y():g}',
+                'text-anchor': 'end',
+                'dominant-baseline': 'central',
+                'style': (f'white-space:pre;font-size:{font.pixelSize()}px;'
+                          f'font-family:{", ".join(font.families())}'),
+                **self._svg_color(style['title_color'], 'fill')})
+            text.text = title
+            element.append(text)
+        return element
 
     def _get_textstyles(self, item, scale=None):
         fontstylemap = {
@@ -289,8 +355,12 @@ class SceneToSVGExporter(SceneExporterBase):
                   - QtCore.QPointF(self.margin, self.margin))
 
         for i, item in enumerate(self.items):
-            if item.TYPE == 'drawing':
-                svg.append(self._get_drawing_element(item, offset))
+            if item.TYPE in ('drawing', 'group'):
+                if item.TYPE == 'drawing':
+                    element = self._get_drawing_element(item, offset)
+                else:
+                    element = self._get_group_element(item, offset)
+                svg.append(element)
                 self.emit_progress(worker, i)
                 if worker and worker.canceled:
                     return
@@ -348,7 +418,9 @@ class SceneToSVGExporter(SceneExporterBase):
             element.set('transform', ' '.join(transforms))
             element.set('x', str(pos.x()))
             element.set('y', str(pos.y()))
-            element.set('opacity', str(item.opacity()))
+            # SVG elements aren't nested like the items, so include the
+            # opacity of groups the item is in:
+            element.set('opacity', str(item.effectiveOpacity()))
 
             svg.append(element)
             self.emit_progress(worker, i)

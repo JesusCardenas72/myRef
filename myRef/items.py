@@ -28,6 +28,7 @@ from PyQt6.QtCore import Qt
 
 from myRef import commands
 from myRef import drawing
+from myRef import group_style
 from myRef import hierarchy
 from myRef import textformat
 from myRef.actions.actions import (
@@ -1207,7 +1208,10 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
     """
 
     TYPE = 'group'
+    #: Space between the children and the border
     PADDING = 10
+    #: Height of the title band relative to the title's font size
+    TITLE_LINE_HEIGHT = 1.4
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -1215,6 +1219,8 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         self.is_image = False
         self.is_open = False
         self.color = None
+        self.style = group_style.default_style()
+        self._border_cache = None
         self._rect = QtCore.QRectF()
         self.init_selectable()
         logger.debug(f'Initialized {self}')
@@ -1224,6 +1230,8 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         data = kwargs.get('data') or {}
         item = cls()
         item.color = data.get('color')
+        item.style = group_style.from_data(data)
+        item.setOpacity(group_style.clean_opacity(data.get('opacity', 1)))
         return item
 
     def __str__(self):
@@ -1233,7 +1241,32 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         return _('Group')
 
     def get_extra_save_data(self):
-        return {'color': self.color} if self.color else {}
+        data = group_style.to_data(self.style)
+        if self.color:
+            data['color'] = self.color
+        if self.opacity() != 1:
+            data['opacity'] = self.opacity()
+        return data
+
+    def get_style(self):
+        """The group's look: Background color, opacity and the style
+        values (see myRef.group_style)."""
+
+        return {'color': self.color, 'opacity': self.opacity(),
+                **self.style}
+
+    def set_style(self, **values):
+        """Change the group's look. Accepts the keys of ``get_style``."""
+
+        if 'color' in values:
+            self.color = values.pop('color')
+        if 'opacity' in values:
+            self.setOpacity(
+                group_style.clean_opacity(values.pop('opacity')))
+        for key, value in values.items():
+            self.style[key] = group_style.clean_value(key, value)
+        self.fit_to_children()
+        self.update()
 
     def background_color(self):
         if self.color:
@@ -1243,8 +1276,27 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
     def bounding_rect_unselected(self):
         return QtCore.QRectF(self._rect)
 
+    def title_text(self):
+        return self.display_name()
+
+    def title_height(self):
+        if group_style.title_font(self.style) is None:
+            return 0
+        return self.style['title_size'] * self.TITLE_LINE_HEIGHT
+
+    def margins(self):
+        """Space around the children: (left, top, right, bottom).
+
+        Border and title are drawn inside the group's area (otherwise
+        they'd get cut off when exporting), so the margins make room
+        for them.
+        """
+
+        side = self.PADDING + group_style.border_inset(self.style)
+        return (side, side + self.title_height(), side, side)
+
     def children_rect(self):
-        """The area of all children plus padding, in item coordinates."""
+        """The area of all children plus margins, in item coordinates."""
 
         rect = QtCore.QRectF()
         for child in hierarchy.user_children(self):
@@ -1252,8 +1304,8 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
                 child.mapRectToParent(child.bounding_rect_unselected()))
         if rect.isNull():
             return rect
-        return rect.adjusted(
-            -self.PADDING, -self.PADDING, self.PADDING, self.PADDING)
+        left, top, right, bottom = self.margins()
+        return rect.adjusted(-left, -top, right, bottom)
 
     def fit_to_children(self):
         """Adjust the group's area to its children."""
@@ -1274,8 +1326,86 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
             item.update_flags()
         self.update()
 
+    def title_rect(self):
+        """Where the title is drawn, in item coordinates."""
+
+        border = group_style.border_inset(self.style)
+        rect = self._rect.adjusted(
+            border + self.PADDING, border + self.PADDING / 2,
+            -border - self.PADDING, 0)
+        rect.setHeight(self.title_height())
+        return rect
+
+    def title_contains(self, pos):
+        """Whether the given point (item coordinates) is on the
+        title's band (the whole width of the group, so that short
+        titles are easy to hit, too)."""
+
+        if group_style.title_font(self.style) is None:
+            return False
+        rect = self.title_rect()
+        rect.setLeft(self._rect.left())
+        rect.setRight(self._rect.right())
+        return rect.contains(pos)
+
+    def border_path(self):
+        """The outline of the border (the middle of the border
+        line), in item coordinates. Cached, since wavy borders consist
+        of many points."""
+
+        half = self.style['border_width'] / 2
+        rect = self._rect.adjusted(half, half, -half, -half)
+        key = (rect.getRect(), self.style['border_shape'],
+               self.style['border_amplitude'],
+               self.style['border_wavelength'])
+        if self._border_cache is None or self._border_cache[0] != key:
+            self._border_cache = (
+                key, group_style.border_path(rect, *key[1:]))
+        return self._border_cache[1]
+
+    def paint_background(self, painter):
+        color = self.background_color()
+        if (group_style.is_wavy(self.style)
+                and self.style['border_width'] > 0):
+            # Don't fill the area outside of the waves
+            painter.fillPath(self.border_path(), color)
+        else:
+            painter.fillRect(self._rect, color)
+
+    def paint_border(self, painter):
+        pen = group_style.border_pen(self.style)
+        if pen is None:
+            return
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QBrush())
+        painter.drawPath(self.border_path())
+
+    def elided_title(self):
+        """The title, shortened with an ellipsis if it doesn't fit."""
+
+        font = group_style.title_font(self.style)
+        rect = self.title_rect()
+        if font is None or rect.width() <= 0:
+            return ''
+        return QtGui.QFontMetricsF(font).elidedText(
+            self.title_text(), Qt.TextElideMode.ElideRight, rect.width())
+
+    def paint_title(self, painter):
+        text = self.elided_title()
+        if not text:
+            return
+        painter.setFont(group_style.title_font(self.style))
+        painter.setPen(QtGui.QColor(self.style['title_color']))
+        painter.drawText(
+            self.title_rect(), Qt.AlignmentFlag.AlignRight
+            | Qt.AlignmentFlag.AlignVCenter, text)
+
     def paint(self, painter, option, widget):
-        painter.fillRect(self._rect, self.background_color())
+        if self._rect.isNull():
+            return
+        self.paint_background(painter)
+        self.paint_border(painter)
+        self.paint_title(painter)
         if self.is_open:
             pen = QtGui.QPen(QtGui.QColor(*COLORS['Scene:Selection']))
             pen.setCosmetic(True)
@@ -1288,6 +1418,8 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
     def create_copy(self):
         item = BeeGroupItem()
         item.color = self.color
+        item.style = dict(self.style)
+        item.setOpacity(self.opacity())
         item.setPos(self.pos())
         item.setZValue(self.zValue())
         item.setScale(self.scale())

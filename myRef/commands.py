@@ -230,10 +230,16 @@ class NormalizeItems(QtGui.QUndoCommand):
         for item, factor in zip(self.items, self.scale_factors):
             self.old_scale_factors.append(item.scale())
             item.setScale(item.scale() * factor, item.center)
+        self.fit_groups()
 
     def undo(self):
         for item, factor in zip(self.items, self.old_scale_factors):
             item.setScale(factor, item.center)
+        self.fit_groups()
+
+    def fit_groups(self):
+        if self.items:
+            fit_groups(self.items[0].scene())
 
 
 class FlipItems(QtGui.QUndoCommand):
@@ -372,10 +378,12 @@ class ArrangeItems(QtGui.QUndoCommand):
             rect_topleft = self.scene.itemsBoundingRect(
                 items=[item]).topLeft()
             hierarchy.set_scene_pos(item, pos + orig_topleft - rect_topleft)
+        fit_groups(self.scene)
 
     def undo(self):
         for item, pos in zip(self.items, self.old_positions):
             item.setPos(pos)
+        fit_groups(self.scene)
 
 
 class CropItem(QtGui.QUndoCommand):
@@ -458,14 +466,14 @@ class ChangeNoteBackground(QtGui.QUndoCommand):
 
 
 class ChangeOpacity(QtGui.QUndoCommand):
-    """Change opacity on images."""
+    """Change the opacity of items (images, groups)."""
 
     def __init__(self, items, opacity, ignore_first_redo=False):
         super().__init__('Change Opacity')
         self.ignore_first_redo = ignore_first_redo
-        self.items = list(filter(lambda item: item.is_image, items))
+        self.items = list(items)
         self.opacity = opacity
-        self.old_opacities = [item.opacity() for item in items]
+        self.old_opacities = [item.opacity() for item in self.items]
 
     def redo(self):
         if self.ignore_first_redo:
@@ -676,25 +684,43 @@ class RenameItem(QtGui.QUndoCommand):
 
     def redo(self):
         self.item.name = self.name
+        self.item.update()
 
     def undo(self):
         self.item.name = self.old
+        self.item.update()
 
 
-class ChangeGroupColor(QtGui.QUndoCommand):
+class ChangeGroupStyle(QtGui.QUndoCommand):
+    """Change the look of groups (see ``BeeGroupItem.get_style``).
 
-    def __init__(self, groups, color):
-        super().__init__('Change group color')
+    The values can be changed after creating the command, e.g. for a
+    live preview in a dialog; call ``redo`` to apply them.
+    """
+
+    def __init__(self, groups, text='Change group style',
+                 ignore_first_redo=False, **values):
+        super().__init__(text)
+        self.ignore_first_redo = ignore_first_redo
         self.groups = [g for g in groups if is_group(g)]
-        self.color = color
-        self.old = [g.color for g in self.groups]
+        self.values = values
+        self.old = [g.get_style() for g in self.groups]
 
     def redo(self):
+        if self.ignore_first_redo:
+            self.ignore_first_redo = False
+            return
         for group in self.groups:
-            group.color = self.color
-            group.update()
+            group.set_style(**self.values)
+        fit_groups(self.groups[0].scene() if self.groups else None)
 
     def undo(self):
-        for group, color in zip(self.groups, self.old):
-            group.color = color
-            group.update()
+        for group, style in zip(self.groups, self.old):
+            group.set_style(**style)
+        fit_groups(self.groups[0].scene() if self.groups else None)
+
+
+class ChangeGroupColor(ChangeGroupStyle):
+
+    def __init__(self, groups, color):
+        super().__init__(groups, text='Change group color', color=color)

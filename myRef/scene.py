@@ -250,17 +250,101 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         return None
 
     def group_selection(self):
-        """Put the selected items into a new group."""
+        """Put the selected items into a new group.
+
+        :returns: The number of selected items that have been left
+            out because they have a different parent than the first one.
+        """
 
         self.cancel_active_modes()
         items = self.selected_top_items()
         if not items:
-            return
+            return 0
         # Items can only be grouped if they share the same parent
         parent = items[0].parentItem()
-        items = [item for item in items if item.parentItem() is parent]
+        grouped = [item for item in items if item.parentItem() is parent]
         self.undo_stack.push(
-            commands.GroupItems(self, items, BeeGroupItem()))
+            commands.GroupItems(self, grouped, BeeGroupItem()))
+        return len(items) - len(grouped)
+
+    def target_groups(self):
+        """The groups that group actions (style, title...) apply to.
+
+        These are the selected groups or, if no group is selected, the
+        group that contains all selected items.
+        """
+
+        items = self.selected_top_items()
+        groups = [item for item in items if isinstance(item, BeeGroupItem)]
+        if groups:
+            return groups
+        parents = {item.parentItem() for item in items}
+        if len(parents) == 1:
+            parent = parents.pop()
+            if isinstance(parent, BeeGroupItem):
+                return [parent]
+        return []
+
+    def target_group(self):
+        groups = self.target_groups()
+        return groups[0] if groups else None
+
+    def add_selection_to_group(self):
+        """Put the selected items into the selected group.
+
+        Exactly one group has to be selected along with the items.
+
+        :returns: Whether the items have been added
+        """
+
+        self.cancel_active_modes()
+        items = self.selected_top_items()
+        groups = [item for item in items if isinstance(item, BeeGroupItem)]
+        others = [item for item in items if item not in groups]
+        if len(groups) != 1 or not others:
+            return False
+        self.move_in_hierarchy(others, groups[0], text='Add to group')
+        return True
+
+    def remove_selection_from_group(self):
+        """Take the selected items out of their groups; they go to the
+        groups' parents, right after the group they've been in."""
+
+        self.cancel_active_modes()
+        items = [item for item in self.selected_top_items()
+                 if isinstance(item.parentItem(), BeeGroupItem)]
+        if not items:
+            return
+        by_group = {}
+        for item in items:
+            by_group.setdefault(item.parentItem(), []).append(item)
+        self.undo_stack.beginMacro('Remove from group')
+        for group, children in by_group.items():
+            parent = group.parentItem()
+            siblings = self.ordered_children(parent)
+            index = siblings.index(group) + 1
+            self.move_in_hierarchy(children, parent, index,
+                                   text='Remove from group')
+        self.undo_stack.endMacro()
+
+    def enter_group(self):
+        """Select the children of the target group."""
+
+        group = self.target_group()
+        if group is None:
+            return
+        children = self.ordered_children(group)
+        if children:
+            self.select_items(children)
+
+    def exit_group(self):
+        """Select the group that contains the selected items."""
+
+        self.cancel_active_modes()
+        parents = {item.parentItem() for item in self.selected_top_items()}
+        groups = [p for p in parents if isinstance(p, BeeGroupItem)]
+        if len(groups) == 1:
+            self.select_items(groups)
 
     def ungroup_selection(self):
         """Dissolve the selected groups."""
@@ -340,7 +424,12 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
     def drop_target_group(self, pos, items):
         """The group under the given position into which the given
-        (moving) items would be dropped, or ``None``."""
+        (moving) items would be dropped, or ``None``.
+
+        That's the innermost group under the position, unless it's
+        inside a closed group: Then the outermost closed group is the
+        target, as for clicks.
+        """
 
         if isinstance(pos, QtCore.QPoint):
             pos = QtCore.QPointF(pos)
@@ -353,7 +442,8 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                                Qt.SortOrder.DescendingOrder,
                                view.transform()):
             if isinstance(item, BeeGroupItem) and item not in excluded:
-                return item
+                target = self.effective_item(item)
+                return None if target in excluded else target
         return None
 
     def items_to_drop(self, pos, items):
@@ -376,14 +466,23 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                  and item.parentItem() is not target]
         return items, target
 
-    def items_for_action(self):
+    def items_for_action(self, items=None):
         """The items an organizing action should affect.
 
-        These are the selected items, or all items if nothing is
+        These are the given items (e.g. the contents of a group) or, if
+        ``None``, the selected items, or all items if nothing is
         selected.
         """
 
+        if items is not None:
+            return list(items)
         return self.selectedItems(user_only=True) or self.user_items()
+
+    def group_contents(self, group):
+        """The items that group-scoped actions affect: The group's
+        direct children (subgroups count as one item)."""
+
+        return self.ordered_children(group)
 
     def items_center(self, items):
         rect = self.itemsBoundingRect(items=items)
@@ -414,7 +513,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         factors = [func(target, v[1]) for v in values]
         self.undo_stack.push(commands.NormalizeItems(items, factors))
 
-    def normalize_width_or_height(self, mode):
+    def normalize_width_or_height(self, mode, items=None):
         """Scale the selected images to have the same width or height, as
         specified by ``mode``.
 
@@ -422,59 +521,60 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         """
 
         self.cancel_active_modes()
-        items = self.items_for_action()
+        items = self.items_for_action(items)
         values = [(item, getattr(rect, mode)())
                   for item, rect in zip(items, self._item_rects(items))]
         self._normalize(values, lambda target, value: target / value)
 
-    def normalize_height(self):
+    def normalize_height(self, items=None):
         """Scale selected images to the same height."""
-        return self.normalize_width_or_height('height')
+        return self.normalize_width_or_height('height', items)
 
-    def normalize_width(self):
+    def normalize_width(self, items=None):
         """Scale selected images to the same width."""
-        return self.normalize_width_or_height('width')
+        return self.normalize_width_or_height('width', items)
 
-    def normalize_size(self):
+    def normalize_size(self, items=None):
         """Scale selected images to the same size.
 
         Size meaning the area = widh * height.
         """
 
         self.cancel_active_modes()
-        items = self.items_for_action()
+        items = self.items_for_action(items)
         values = [(item, rect.width() * rect.height())
                   for item, rect in zip(items, self._item_rects(items))]
         self._normalize(
             values, lambda target, value: math.sqrt(target / value))
 
-    def normalize_longest_side(self):
+    def normalize_longest_side(self, items=None):
         """Scale selected items so that their longest sides are equal."""
 
         self.cancel_active_modes()
-        items = self.items_for_action()
+        items = self.items_for_action(items)
         values = [(item, max(rect.width(), rect.height()))
                   for item, rect in zip(items, self._item_rects(items))]
         self._normalize(values, lambda target, value: target / value)
 
-    def normalize_scale(self):
+    def normalize_scale(self, items=None):
         """Give selected items the same scale factor.
 
         Useful for giving text notes the same text size.
         """
 
         self.cancel_active_modes()
-        values = [(item, item.scale()) for item in self.items_for_action()]
+        values = [(item, item.scale())
+                  for item in self.items_for_action(items)]
         self._normalize(values, lambda target, value: target / value)
 
-    def align(self, edge):
+    def align(self, edge, items=None):
         """Align items to the outermost edge of all affected items.
 
         :param edge: "left", "right", "top" or "bottom"
         """
 
         self.cancel_active_modes()
-        items = self.items_for_action()
+        items = self.items_for_action(items)
         if len(items) < 2:
             return
         rects = self._item_rects(items)
@@ -496,14 +596,14 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             raise ValueError(f'Unknown edge: {edge}')
         self.undo_stack.push(commands.ArrangeItems(self, items, positions))
 
-    def distribute(self, vertical=False):
+    def distribute(self, vertical=False, items=None):
         """Distribute items with equal spacing between them.
 
         The outermost items keep their positions.
         """
 
         self.cancel_active_modes()
-        items = self.items_for_action()
+        items = self.items_for_action(items)
         if len(items) < 3:
             return
         pairs = list(zip(items, self._item_rects(items)))
@@ -531,13 +631,13 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self.undo_stack.push(commands.ArrangeItems(
             self, [p[0] for p in pairs], positions))
 
-    def stack(self):
+    def stack(self, items=None):
         """Pile up items on top of each other, centered on their common
         center. The stacking order (z values) is kept.
         """
 
         self.cancel_active_modes()
-        items = self.items_for_action()
+        items = self.items_for_action(items)
         if len(items) < 2:
             return
         center = self.items_center(items)
@@ -556,12 +656,12 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
         MAPPING[default]()
 
-    def arrange(self, vertical=False):
+    def arrange(self, vertical=False, items=None):
         """Arrange items in a line (horizontally or vertically)."""
 
         self.cancel_active_modes()
 
-        items = sort_by_filename(self.items_for_action())
+        items = sort_by_filename(self.items_for_action(items))
         if len(items) < 2:
             return
 
@@ -599,10 +699,10 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                                   [r['item'] for r in rects],
                                   positions))
 
-    def arrange_optimal(self):
+    def arrange_optimal(self, items=None):
         self.cancel_active_modes()
 
-        items = self.items_for_action()
+        items = self.items_for_action(items)
         if len(items) < 2:
             return
 
@@ -640,7 +740,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
     def _shuffled(items):
         return random.sample(items, len(items))
 
-    def arrange_square(self, order='filename'):
+    def arrange_square(self, order='filename', items=None):
         """Arrange items in a square grid.
 
         :param order: "filename", "addition" (time added) or "random".
@@ -654,7 +754,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         max_width = 0
         max_height = 0
         gap = self.settings.valueOrDefault('Items/arrange_gap')
-        items = orders[order](self.items_for_action())
+        items = orders[order](self.items_for_action(items))
 
         if len(items) < 2:
             return
@@ -872,6 +972,14 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
     def mouseDoubleClickEvent(self, event):
         self.cancel_active_modes()
         item = self.itemAt(event.scenePos(), self.views()[0].transform())
+        if (isinstance(item, BeeGroupItem)
+                and self.effective_item(item) is item
+                and item.title_contains(item.mapFromScene(event.scenePos()))
+                and not self.items_locked):
+            # Rename the group via its title
+            self.select_items([item])
+            self.views()[0].rename_item(item)
+            return
         if item and hierarchy.is_user_item(item):
             target = self.effective_item(item)
             if (isinstance(target, BeeGroupItem) and target is not item

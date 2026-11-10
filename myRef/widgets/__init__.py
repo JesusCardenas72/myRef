@@ -31,6 +31,7 @@ from myRef.widgets import (  # noqa: F401
     hierarchy,
     textformat,
     drawing,
+    groups,
 )
 
 

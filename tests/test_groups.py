@@ -138,8 +138,9 @@ def test_group_selection_creates_group(view):
         for p1, p2 in zip(corners, item.corners_scene_coords):
             assert_points_equal(p1, p2)
     rect = view.scene.itemsBoundingRect(items=[group])
-    pad = BeeGroupItem.PADDING
-    assert rect == QtCore.QRectF(-pad, -pad, 300 + 2 * pad, 180 + 2 * pad)
+    left, top, right, bottom = group.margins()
+    assert rect == QtCore.QRectF(
+        -left, -top, 300 + left + right, 180 + top + bottom)
 
 
 def test_group_children_not_selectable_while_closed(view):
@@ -201,8 +202,9 @@ def test_group_fits_children_after_move(view):
     group = make_group(view, [a, b])
     b.moveBy(100, 0)
     view.scene.fit_groups()
+    left, _, right, _ = group.margins()
     assert group.bounding_rect_unselected().width() == pytest.approx(
-        400 + 2 * BeeGroupItem.PADDING)
+        400 + left + right)
 
 
 def test_delete_child_restores_parent_on_undo(view):
@@ -307,6 +309,125 @@ def test_paste_group_copies_children(view):
     assert len(groups) == 2
     new = [g for g in groups if g is not group][0]
     assert len(hierarchy.user_children(new)) == 2
+
+
+def test_copy_keeps_style_and_opacity(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    group.set_style(border_width=6, border_style='dot',
+                    border_color='#ff0000ff', title_size=25)
+    group.setOpacity(0.4)
+    copy = group.copy_with_children()
+    assert copy.style == group.style
+    assert copy.style is not group.style
+    assert copy.opacity() == pytest.approx(0.4)
+    assert copy.margins() == group.margins()
+
+
+def test_margins_grow_with_border_and_title(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    group.set_style(border_width=0, title_size=0)
+    assert group.margins() == (BeeGroupItem.PADDING,) * 4
+    group.set_style(border_width=5, title_size=20)
+    side = BeeGroupItem.PADDING + 5
+    assert group.margins() == (
+        side, side + 20 * BeeGroupItem.TITLE_LINE_HEIGHT, side, side)
+    left, top, right, bottom = group.margins()
+    assert group.bounding_rect_unselected() == QtCore.QRectF(
+        -left, -top, 100 + left + right, 80 + top + bottom)
+
+
+def test_title_and_border_inside_group_rect(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    group.set_style(border_width=8, title_size=30)
+    rect = group.bounding_rect_unselected()
+    assert rect.contains(group.title_rect())
+    # The title doesn't overlap the children
+    assert group.title_rect().bottom() <= group.mapRectFromScene(
+        a.sceneBoundingRect()).top()
+    scene_rect = view.scene.itemsBoundingRect()
+    assert scene_rect.contains(group.mapRectToScene(group.title_rect()))
+
+
+def test_change_group_style_undo(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    old_rect = group.bounding_rect_unselected()
+    view.undo_stack.push(commands.ChangeGroupStyle(
+        [group], border_width=20, border_style='dash', color='#ff00ff00'))
+    assert group.style['border_width'] == 20
+    assert group.style['border_style'] == 'dash'
+    assert group.color == '#ff00ff00'
+    assert group.bounding_rect_unselected().width() == pytest.approx(
+        old_rect.width() + 2 * (20 - 2))
+    view.undo_stack.undo()
+    assert group.style['border_width'] == 2
+    assert group.style['border_style'] == 'solid'
+    assert group.color is None
+    assert group.bounding_rect_unselected() == old_rect
+
+
+def test_change_group_style_refits_parent_group(view):
+    a = make_image(view)
+    b = make_image(view, 200)
+    inner = make_group(view, [a])
+    view.scene.clearSelection()
+    inner.setSelected(True)
+    b.setSelected(True)
+    view.scene.group_selection()
+    outer = inner.parentItem()
+    assert outer is not None
+    old_width = outer.bounding_rect_unselected().width()
+    view.undo_stack.push(commands.ChangeGroupStyle([inner], border_width=30))
+    assert outer.bounding_rect_unselected().width() > old_width
+
+
+def test_change_opacity_on_groups(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    view.undo_stack.push(commands.ChangeOpacity([group, a], 0.3))
+    assert group.opacity() == pytest.approx(0.3)
+    assert a.opacity() == pytest.approx(0.3)
+    view.undo_stack.undo()
+    assert group.opacity() == 1
+    assert a.opacity() == 1
+
+
+def test_rename_repaints_title(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    with patch.object(group, 'update') as update:
+        view.undo_stack.push(commands.RenameItem(group, 'New'))
+        update.assert_called()
+    assert group.title_text() == 'New'
+
+
+def test_paint_group_with_style(view):
+    a = make_image(view)
+    group = make_group(view, [a])
+    group.name = 'A very long title that does not fit into the group'
+    group.set_style(border_style='dash_dot', border_width=4)
+    image = QtGui.QImage(400, 400, QtGui.QImage.Format.Format_ARGB32)
+    painter = QtGui.QPainter(image)
+    view.scene.render(painter)
+    painter.end()
+
+
+def test_export_includes_border(view, tmpdir):
+    a = make_image(view)
+    group = make_group(view, [a])
+    group.set_style(border_width=10, border_color='#ffff0000',
+                    title_size=0)
+    view.scene.clearSelection()
+    exporter = SceneToPixmapExporter(view.scene)
+    exporter.size = exporter.default_size
+    image = exporter.render_to_image()
+    # The border's outer edge is part of the exported image
+    x = int(exporter.margin) + 3
+    assert image.pixelColor(x, image.height() // 2) == QtGui.QColor(
+        '#ffff0000')
 
 
 def test_change_group_color_undo(view):
@@ -523,6 +644,9 @@ def test_save_and_load_groups(view, tmpfile):
     group = make_group(view, [a, b])
     group.name = 'Refs'
     group.color = '#8000ff00'
+    group.set_style(border_width=7, border_style='dash',
+                    title_color='#ff123456')
+    group.setOpacity(0.6)
     a.set_item_locked(True)
     a.set_comment('<p>note</p>')
     view.scene.clearSelection()
@@ -538,6 +662,10 @@ def test_save_and_load_groups(view, tmpfile):
     loaded = groups[0]
     assert loaded.name == 'Refs'
     assert loaded.color == '#8000ff00'
+    assert loaded.style['border_width'] == 7
+    assert loaded.style['border_style'] == 'dash'
+    assert loaded.style['title_color'] == '#ff123456'
+    assert loaded.opacity() == pytest.approx(0.6)
     children = sorted(hierarchy.user_children(loaded),
                       key=lambda i: i.scenePos().x())
     assert len(children) == 2

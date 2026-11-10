@@ -164,6 +164,12 @@ Código en `__main__.py` (`BeeRefMainWindow`) y `view.py`.
 > desbloquear todo (Alt+Shift+L) se pueden deshacer; el candado global
 > sigue aparte. Arrastrar a grupos se desactiva en Ajustes > Imágenes
 > y elementos.
+>
+> Ampliada después por `PLAN_GRUPOS.md` (fases G1–G6): menú «Grupo»,
+> borde configurable (trazo y formas onduladas), título, opacidad,
+> diálogo de estilo, añadir y quitar del grupo, organizar y
+> normalizar el contenido del grupo, subgrupos y exportación SVG de
+> grupos.
 
 Es **la fase de mayor riesgo**: introduce relaciones padre-hijo en un código que asume que todos los items son de nivel superior.
 
