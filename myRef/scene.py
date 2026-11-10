@@ -285,6 +285,16 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 return [parent]
         return []
 
+    def selected_group(self):
+        """The group if exactly one group is selected and nothing
+        else, otherwise ``None``. Organizing actions then affect the
+        group's contents, as if they were all selected."""
+
+        items = self.selected_top_items()
+        if len(items) == 1 and isinstance(items[0], BeeGroupItem):
+            return items[0]
+        return None
+
     def target_group(self):
         groups = self.target_groups()
         return groups[0] if groups else None
@@ -568,7 +578,11 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self._normalize(values, lambda target, value: target / value)
 
     def align(self, edge, items=None):
-        """Align items to the outermost edge of all affected items.
+        """Push items to one side of all affected items.
+
+        Every item moves towards the given edge until it reaches it or
+        another item (kept apart by the arrange gap), so nothing ends
+        up on top of anything else.
 
         :param edge: "left", "right", "top" or "bottom"
         """
@@ -577,24 +591,63 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         items = self.items_for_action(items)
         if len(items) < 2:
             return
-        rects = self._item_rects(items)
-        if edge == 'left':
-            target = min(r.left() for r in rects)
-            positions = [QtCore.QPointF(target, r.top()) for r in rects]
-        elif edge == 'right':
-            target = max(r.right() for r in rects)
-            positions = [QtCore.QPointF(target - r.width(), r.top())
-                         for r in rects]
-        elif edge == 'top':
-            target = min(r.top() for r in rects)
-            positions = [QtCore.QPointF(r.left(), target) for r in rects]
-        elif edge == 'bottom':
-            target = max(r.bottom() for r in rects)
-            positions = [QtCore.QPointF(r.left(), target - r.height())
-                         for r in rects]
-        else:
+        if edge not in ('left', 'right', 'top', 'bottom'):
             raise ValueError(f'Unknown edge: {edge}')
+        rects = self._item_rects(items)
+        gap = self.settings.valueOrDefault('Items/arrange_gap')
+        positions = self._push_positions(edge, rects, gap)
         self.undo_stack.push(commands.ArrangeItems(self, items, positions))
+
+    @staticmethod
+    def _push_positions(edge, rects, gap):
+        """New top left positions for the given rects when pushed to
+        ``edge``, keeping ``gap`` between rects that share a row/column.
+        """
+
+        horizontal = edge in ('left', 'right')
+        sign = 1 if edge in ('left', 'top') else -1
+
+        def lo(r):  # start of rect along the push direction
+            return r.left() if horizontal else r.top()
+
+        def hi(r):
+            return r.right() if horizontal else r.bottom()
+
+        def cross_overlap(r1, r2):
+            if horizontal:
+                return r1.top() < r2.bottom() and r1.bottom() > r2.top()
+            return r1.left() < r2.right() and r1.right() > r2.left()
+
+        if sign == 1:
+            bound = min(lo(r) for r in rects)
+            order = sorted(range(len(rects)), key=lambda i: lo(rects[i]))
+        else:
+            bound = max(hi(r) for r in rects)
+            order = sorted(range(len(rects)), key=lambda i: -hi(rects[i]))
+
+        placed = []  # (index, start, end) along the push direction
+        positions = [None] * len(rects)
+        for i in order:
+            r = rects[i]
+            length = hi(r) - lo(r)
+            if sign == 1:
+                start = bound
+                for j, p_start, p_end in placed:
+                    if cross_overlap(r, rects[j]):
+                        start = max(start, p_end + gap)
+                end = start + length
+            else:
+                end = bound
+                for j, p_start, p_end in placed:
+                    if cross_overlap(r, rects[j]):
+                        end = min(end, p_start - gap)
+                start = end - length
+            placed.append((i, start, end))
+            if horizontal:
+                positions[i] = QtCore.QPointF(start, r.top())
+            else:
+                positions[i] = QtCore.QPointF(r.left(), start)
+        return positions
 
     def distribute(self, vertical=False, items=None):
         """Distribute items with equal spacing between them.

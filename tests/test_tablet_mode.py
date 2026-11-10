@@ -779,7 +779,7 @@ def test_titlebar_button_tooltip_is_translated(titlebar_button, settings):
 
 def test_settings_dialog_has_tablet_and_lock_tabs(view):
     dialog = SettingsDialog(view)
-    assert dialog.tabs.count() == 7
+    assert dialog.tabs.count() == 8
     assert dialog.tabs.tabText(2) == '&Tablet Mode'
     assert dialog.tabs.tabText(3) == '&Lock Icon'
     assert dialog.tabs.tabText(4) == 'E&xport'
@@ -909,3 +909,23 @@ def test_actions_are_in_view_menu(view):
                      if m.title() == '&View')
     assert actions['tablet_mode'].qaction in view_menu.actions()
     assert actions['lock_items'].qaction in view_menu.actions()
+
+
+def test_settings_dialog_has_shortcuts_tab(view):
+    dialog = SettingsDialog(view)
+    assert dialog.tabs.tabText(7)
+    assert dialog.shortcuts_table.model().rowCount() > 0
+
+
+def test_default_shortcuts_follow_pureref():
+    from myRef.actions.actions import actions
+    assert actions['open'].shortcuts == ['Ctrl+L']
+    assert actions['insert_text'].shortcuts == ['Ctrl+N']
+    assert actions['click_through'].shortcuts == ['Ctrl+T']
+    assert actions['optimize_canvas'].shortcuts == ['Ctrl+O']
+    seen = {}
+    for action in actions.values():
+        for shortcut in action.shortcuts:
+            key = (action.context, shortcut)
+            assert key not in seen, (key, action.id, seen[key])
+            seen[key] = action.id

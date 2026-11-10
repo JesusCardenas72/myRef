@@ -1845,3 +1845,29 @@ for _action_id, _method, _kwargs in actions.SCOPED_ACTIONS:
     setattr(BeeGraphicsView,
             f'on_action_{actions.scoped_id(_action_id)}',
             _scoped_callback(_method, _kwargs))
+    def event(self, event):
+        # Esc is also the shortcut for deselecting; while drawing or
+        # editing text it must reach keyPressEvent instead.
+        if (event.type() == QtCore.QEvent.Type.ShortcutOverride
+                and event.key() == Qt.Key.Key_Escape
+                and (self.draw_session or actions.active_context != 'global')):
+            event.accept()
+            return True
+        return super().event(event)
+
+def _group_aware_callback(original, method, kwargs):
+    """With a single group selected, the regular organizing actions
+    (and thus their shortcuts) affect the group's contents."""
+
+    def callback(self):
+        group = self.scene.selected_group()
+        if group is not None:
+            self.apply_to_group_contents(method, **kwargs)
+        else:
+            original(self)
+    return callback
+
+
+    _name = f'on_action_{_action_id}'
+    setattr(BeeGraphicsView, _name, _group_aware_callback(
+        getattr(BeeGraphicsView, _name), _method, _kwargs))

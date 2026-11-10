@@ -187,7 +187,7 @@ actions = BeeActionList([
     Action(
         id='open',
         text='&Open',
-        shortcuts=['Ctrl+O'],
+        shortcuts=['Ctrl+L'],
         callback='on_action_open',
     ),
     Action(
@@ -219,25 +219,28 @@ actions = BeeActionList([
     Action(
         id='export_scene',
         text='E&xport Scene...',
-        shortcuts=['Ctrl+Shift+E'],
+        shortcuts=['Ctrl+E'],
         callback='on_action_export_scene',
         group='active_when_items_in_scene',
     ),
     Action(
         id='export_images',
         text='Export &Images...',
+        shortcuts=['Ctrl+Alt+I'],
         callback='on_action_export_images',
         group='active_when_items_in_scene',
     ),
     Action(
         id='export_selection_as_scene',
         text='Export S&election as Scene...',
+        shortcuts=['Ctrl+Shift+E'],
         callback='on_action_export_selection_as_scene',
         group='active_when_selection',
     ),
     Action(
         id='export_selected_images',
         text='Export Selected Ima&ges...',
+        shortcuts=['Ctrl+Shift+I'],
         callback='on_action_export_selected_images',
         group='active_when_selection',
     ),
@@ -262,7 +265,7 @@ actions = BeeActionList([
     Action(
         id='insert_text',
         text='&Text',
-        shortcuts=['Ctrl+T'],
+        shortcuts=['Ctrl+N'],
         callback='on_action_insert_text',
     ),
     Action(
@@ -309,42 +312,42 @@ actions = BeeActionList([
     Action(
         id='raise_to_top',
         text='&Raise to Top',
-        shortcuts=['PgUp'],
+        shortcuts=['Up'],
         callback='on_action_raise_to_top',
         group='active_when_selection',
     ),
     Action(
         id='lower_to_bottom',
         text='Lower to Bottom',
-        shortcuts=['PgDown'],
+        shortcuts=['Down'],
         callback='on_action_lower_to_bottom',
         group='active_when_selection',
     ),
     Action(
         id='normalize_height',
         text='&Height',
-        shortcuts=['Shift+H'],
+        shortcuts=['Ctrl+Alt+Left'],
         callback='on_action_normalize_height',
         group='active_when_items_in_scene',
     ),
     Action(
         id='normalize_width',
         text='&Width',
-        shortcuts=['Shift+W'],
+        shortcuts=['Ctrl+Alt+Right'],
         callback='on_action_normalize_width',
         group='active_when_items_in_scene',
     ),
     Action(
         id='normalize_size',
         text='&Size',
-        shortcuts=['Shift+S'],
+        shortcuts=['Ctrl+Alt+Up'],
         callback='on_action_normalize_size',
         group='active_when_items_in_scene',
     ),
     Action(
         id='arrange_optimal',
         text='&Optimal',
-        shortcuts=['Shift+O'],
+        shortcuts=['Ctrl+P'],
         callback='on_action_arrange_optimal',
         group='active_when_items_in_scene',
     ),
@@ -363,6 +366,7 @@ actions = BeeActionList([
     Action(
         id='arrange_square',
         text='&Square (by filename)',
+        shortcuts=['Ctrl+Alt+N'],
         callback='on_action_arrange_square',
         group='active_when_items_in_scene',
     ),
@@ -376,25 +380,27 @@ actions = BeeActionList([
     Action(
         id='normalize_longest_side',
         text='&Longest Side',
-        shortcuts=['Shift+L'],
         callback='on_action_normalize_longest_side',
         group='active_when_items_in_scene',
     ),
     Action(
         id='normalize_scale',
         text='S&cale',
+        shortcuts=['Ctrl+Alt+Down'],
         callback='on_action_normalize_scale',
         group='active_when_items_in_scene',
     ),
     Action(
         id='arrange_square_addition',
         text='Square (by &time added)',
+        shortcuts=['Ctrl+Alt+A'],
         callback='on_action_arrange_square_addition',
         group='active_when_items_in_scene',
     ),
     Action(
         id='arrange_square_random',
         text='Square (ran&dom)',
+        shortcuts=['Ctrl+Alt+R'],
         callback='on_action_arrange_square_random',
         group='active_when_items_in_scene',
     ),
@@ -429,7 +435,7 @@ actions = BeeActionList([
     Action(
         id='distribute_horizontal',
         text='Distribute Hori&zontally',
-        shortcuts=['Ctrl+Alt+Shift+Right'],
+        shortcuts=['Ctrl+Alt+Shift+Up'],
         callback='on_action_distribute_horizontal',
         group='active_when_items_in_scene',
     ),
@@ -464,7 +470,7 @@ actions = BeeActionList([
     Action(
         id='zoom_actual',
         text='Act&ual Size',
-        shortcuts=['0'],
+        shortcuts=['Ctrl+0'],
         callback='on_action_zoom_actual',
         group='active_when_items_in_scene',
     ),
@@ -483,7 +489,7 @@ actions = BeeActionList([
     Action(
         id='grayscale',
         text='&Grayscale',
-        shortcuts=['G'],
+        shortcuts=['Alt+G'],
         checkable=True,
         callback='on_action_grayscale',
         group='active_when_selection',
@@ -512,47 +518,45 @@ actions = BeeActionList([
     Action(
         id='sample_color',
         text='Sample Color',
-        shortcuts=['S'],
         callback='on_action_sample_color',
         group='active_when_items_in_scene',
     ),
     Action(
         id='crop',
         text='&Crop',
-        shortcuts=['Shift+C'],
+        shortcuts=['Ctrl+Alt+Shift+C'],
         callback='on_action_crop',
         group='active_when_single_image',
     ),
     Action(
         id='flip_horizontally',
         text='Flip &Horizontally',
-        shortcuts=['H'],
+        shortcuts=['Alt+Shift+H'],
         callback='on_action_flip_horizontally',
         group='active_when_selection',
     ),
     Action(
         id='flip_vertically',
         text='Flip &Vertically',
-        shortcuts=['V'],
+        shortcuts=['Alt+Shift+V'],
         callback='on_action_flip_vertically',
         group='active_when_selection',
     ),
     Action(
         id='new_scene',
         text='&New Scene',
-        shortcuts=['Ctrl+N'],
+        shortcuts=['Ctrl+K'],
         callback='on_action_new_scene',
     ),
     Action(
         id='fit_scene',
         text='&Fit Scene',
-        shortcuts=['1'],
         callback='on_action_fit_scene',
     ),
     Action(
         id='fit_selection',
         text='Fit &Selection',
-        shortcuts=['2'],
+        shortcuts=['Space'],
         callback='on_action_fit_selection',
         group='active_when_selection',
     ),
@@ -577,13 +581,14 @@ actions = BeeActionList([
     Action(
         id='reset_crop',
         text='Reset Cro&p',
+        shortcuts=['Ctrl+Shift+C'],
         callback='on_action_reset_crop',
         group='active_when_selection',
     ),
     Action(
         id='reset_transforms',
         text='Reset &All',
-        shortcuts=['R'],
+        shortcuts=['Ctrl+Shift+T'],
         callback='on_action_reset_transforms',
         group='active_when_selection',
     ),
@@ -596,13 +601,13 @@ actions = BeeActionList([
     Action(
         id='deselect_all',
         text='Deselect &All',
-        shortcuts=['Ctrl+Shift+A'],
+        shortcuts=['Esc'],
         callback='on_action_deselect_all',
     ),
     Action(
         id='help',
         text='&Help',
-        shortcuts=['F1', 'Ctrl+H'],
+        shortcuts=['Ctrl+H'],
         callback='on_action_help',
     ),
     Action(
@@ -646,6 +651,7 @@ actions = BeeActionList([
     Action(
         id='lock_items',
         text='&Lock Images',
+        shortcuts=['Ctrl+R'],
         checkable=True,
         settings='View/lock_items',
         callback='on_action_lock_items',
@@ -653,37 +659,40 @@ actions = BeeActionList([
     Action(
         id='always_on_bottom',
         text='Always On &Bottom',
+        shortcuts=['Ctrl+Shift+B'],
         checkable=True,
         callback='on_action_always_on_bottom',
     ),
     Action(
         id='always_on_top_of_app',
         text='Always On Top of A&pplication...',
+        shortcuts=['Ctrl+Alt+Shift+A'],
         callback='on_action_always_on_top_of_app',
     ),
     Action(
         id='click_through',
         text='&Click-Through',
-        shortcuts=['Ctrl+Alt+T'],
+        shortcuts=['Ctrl+T'],
         checkable=True,
         callback='on_action_click_through',
     ),
     Action(
         id='lock_window',
         text='&Lock Window',
+        shortcuts=['Ctrl+W'],
         checkable=True,
         callback='on_action_lock_window',
     ),
     Action(
         id='opacity_increase',
         text='&Increase Opacity',
-        shortcuts=['Ctrl+Alt+Up'],
+        shortcuts=['Ctrl+Shift++', 'Ctrl+Shift+='],
         callback='on_action_opacity_increase',
     ),
     Action(
         id='opacity_decrease',
         text='&Decrease Opacity',
-        shortcuts=['Ctrl+Alt+Down'],
+        shortcuts=['Ctrl+Shift+-'],
         callback='on_action_opacity_decrease',
     ),
     Action(
@@ -694,12 +703,14 @@ actions = BeeActionList([
     Action(
         id='fit_window_to_selection',
         text='Fit Window to &Selection',
+        shortcuts=['Ctrl+Shift+R'],
         callback='on_action_fit_window_to_selection',
         group='active_when_items_in_scene',
     ),
     Action(
         id='maximize_window',
         text='&Maximize',
+        shortcuts=['Ctrl+F'],
         checkable=True,
         callback='on_action_maximize_window',
     ),
@@ -712,7 +723,6 @@ actions = BeeActionList([
     Action(
         id='move_window',
         text='Move &Window',
-        shortcuts=['Ctrl+M'],
         callback='on_action_move_window',
     ),
     Action(
@@ -725,13 +735,14 @@ actions = BeeActionList([
     Action(
         id='always_on_top',
         text='&Always On Top',
+        shortcuts=['Ctrl+Shift+A'],
         checkable=True,
         callback='on_action_always_on_top',
     ),
     Action(
         id='show_grid',
         text='&Show Grid',
-        shortcuts=["Ctrl+'"],
+        shortcuts=['G'],
         checkable=True,
         settings='Canvas/show_grid',
         callback='on_action_show_grid',
@@ -739,7 +750,6 @@ actions = BeeActionList([
     Action(
         id='snap_to_grid',
         text='Snap to &Grid',
-        shortcuts=["Ctrl+Shift+'"],
         checkable=True,
         settings='Canvas/snap_to_grid',
         callback='on_action_snap_to_grid',
@@ -755,12 +765,14 @@ actions = BeeActionList([
     Action(
         id='focus_canvas',
         text='&Focus Canvas',
+        shortcuts=['Ctrl+Space'],
         callback='on_action_focus_canvas',
         group='active_when_items_in_scene',
     ),
     Action(
         id='optimize_canvas',
         text='&Optimize Canvas',
+        shortcuts=['Ctrl+O'],
         callback='on_action_optimize_canvas',
         group='active_when_items_in_scene',
     ),
@@ -787,6 +799,7 @@ actions = BeeActionList([
     Action(
         id='remove_from_group',
         text='&Remove from Group',
+        shortcuts=['Ctrl+Shift+Q'],
         callback='on_action_remove_from_group',
         group='active_when_selection',
     ),
@@ -902,7 +915,7 @@ actions = BeeActionList([
     Action(
         id='text_strikeout',
         text='&Strikethrough',
-        shortcuts=['Ctrl+Shift+X'],
+        shortcuts=['Alt+Shift+S'],
         callback='on_action_text_strikeout',
         group='active_when_text_selected',
         context=CONTEXT_TEXT_EDIT,
@@ -910,20 +923,26 @@ actions = BeeActionList([
     Action(
         id='text_color',
         text='Text &Color...',
+        shortcuts=['Ctrl+T'],
         callback='on_action_text_color',
         group='active_when_text_selected',
+        context=CONTEXT_TEXT_EDIT,
     ),
     Action(
         id='text_highlight',
         text='&Highlight Color...',
+        shortcuts=['Ctrl+H'],
         callback='on_action_text_highlight',
         group='active_when_text_selected',
+        context=CONTEXT_TEXT_EDIT,
     ),
     Action(
         id='note_background',
         text='Note Back&ground...',
+        shortcuts=['Ctrl+Shift+T'],
         callback='on_action_note_background',
         group='active_when_text_selected',
+        context=CONTEXT_TEXT_EDIT,
     ),
     Action(
         id='text_align_left',
@@ -952,7 +971,7 @@ actions = BeeActionList([
     Action(
         id='text_bullet_list',
         text='Bulle&t List',
-        shortcuts=['Ctrl+Shift+8'],
+        shortcuts=['Ctrl+Shift+B'],
         callback='on_action_text_bullet_list',
         group='active_when_text_selected',
         context=CONTEXT_TEXT_EDIT,
@@ -960,7 +979,7 @@ actions = BeeActionList([
     Action(
         id='text_numbered_list',
         text='&Numbered List',
-        shortcuts=['Ctrl+Shift+7'],
+        shortcuts=['Ctrl+Shift+N'],
         callback='on_action_text_numbered_list',
         group='active_when_text_selected',
         context=CONTEXT_TEXT_EDIT,
@@ -968,7 +987,7 @@ actions = BeeActionList([
     Action(
         id='text_checklist',
         text='Chec&klist',
-        shortcuts=['Ctrl+Shift+9'],
+        shortcuts=['Ctrl+Shift+C'],
         callback='on_action_text_checklist',
         group='active_when_text_selected',
         context=CONTEXT_TEXT_EDIT,
@@ -976,7 +995,7 @@ actions = BeeActionList([
     Action(
         id='text_indent',
         text='Increase In&dent',
-        shortcuts=['Ctrl+]'],
+        shortcuts=['Ctrl+Tab'],
         callback='on_action_text_indent',
         group='active_when_text_selected',
         context=CONTEXT_TEXT_EDIT,
@@ -984,7 +1003,7 @@ actions = BeeActionList([
     Action(
         id='text_dedent',
         text='Decre&ase Indent',
-        shortcuts=['Ctrl+['],
+        shortcuts=['Ctrl+Shift+Tab'],
         callback='on_action_text_dedent',
         group='active_when_text_selected',
         context=CONTEXT_TEXT_EDIT,
@@ -1007,16 +1026,18 @@ actions = BeeActionList([
     Action(
         id='text_copy_format',
         text='C&opy Format',
-        shortcuts=['Ctrl+Alt+C'],
+        shortcuts=['Alt+Shift+C'],
         callback='on_action_text_copy_format',
         group='active_when_text_selected',
+        context=CONTEXT_TEXT_EDIT,
     ),
     Action(
         id='text_paste_format',
         text='Paste For&mat',
-        shortcuts=['Ctrl+Alt+V'],
+        shortcuts=['Alt+Shift+V'],
         callback='on_action_text_paste_format',
         group='active_when_text_selected',
+        context=CONTEXT_TEXT_EDIT,
     ),
     Action(
         id='text_clear_format',
@@ -1082,6 +1103,7 @@ actions = BeeActionList([
     Action(
         id='settings',
         text='&Settings',
+        shortcuts=['Ctrl+U'],
         callback='on_action_settings',
     ),
     Action(

@@ -218,6 +218,14 @@ TRANSLATIONS = {
     'Snap Distance:': 'Distancia de imantado:',
     ('How close items have to get to the edges of other items '
      'to snap to them, in screen pixels. Hold Alt while moving '
+    '&Shortcuts': '&Atajos',
+    'Double-click a shortcut to change it. The defaults are the '
+    'PureRef shortcuts.': 'Haz doble clic en un atajo para cambiarlo. '
+    'Los atajos por defecto son los de PureRef.',
+    'Restore Shortcut Defaults': 'Restablecer atajos',
+    'Do you want to restore all keyboard shortcuts to their '
+    'default values?': '¿Quieres restablecer todos los atajos de teclado '
+    'a sus valores predeterminados?',
      'to not snap.'):
     ('Cuánto tienen que acercarse los elementos a los bordes de otros '
      'para imantarse a ellos, en píxeles de pantalla. Mantén Alt al '

@@ -20,7 +20,7 @@ from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt
 
 from myRef import constants, i18n
-from myRef.config import BeeSettings, settings_events
+from myRef.config import BeeSettings, KeyboardSettings, settings_events
 from myRef.config.settings import (
     format_mouse_binding,
     MOUSE_BINDING_BUTTONS,
@@ -29,6 +29,8 @@ from myRef.config.settings import (
     parse_mouse_binding,
 )
 from myRef.i18n import _
+from myRef.widgets.dragspin import DragSpinBox
+from myRef.widgets.controls.keyboard import KeyboardShortcutsView
 
 
 logger = logging.getLogger(__name__)
@@ -123,7 +125,7 @@ class IntegerGroup(GroupBase):
 
     def __init__(self):
         super().__init__()
-        self.input = QtWidgets.QSpinBox()
+        self.input = DragSpinBox()
         self.input.setRange(self.MIN, self.MAX)
         self.input.setSuffix(self.SUFFIX)
         self.set_value(self.settings.valueOrDefault(self.KEY))
@@ -618,6 +620,28 @@ class SettingsDialog(QtWidgets.QDialog):
         canvas_layout.addWidget(CanvasMarginWidget(), 1, 1)
         tabs.addTab(canvas, '')
 
+        # Keyboard shortcuts
+        shortcuts = QtWidgets.QWidget()
+        shortcuts_layout = QtWidgets.QVBoxLayout()
+        shortcuts.setLayout(shortcuts_layout)
+        self.shortcuts_table = KeyboardShortcutsView(shortcuts)
+        self.shortcuts_search = QtWidgets.QLineEdit()
+        self.shortcuts_search.textChanged.connect(
+            self.shortcuts_table.model().setFilterFixedString)
+        self.shortcuts_hint = QtWidgets.QLabel()
+        self.shortcuts_hint.setWordWrap(True)
+        self.shortcuts_reset_btn = QtWidgets.QPushButton()
+        self.shortcuts_reset_btn.setAutoDefault(False)
+        self.shortcuts_reset_btn.clicked.connect(
+            self.on_restore_shortcut_defaults)
+        search_row = QtWidgets.QHBoxLayout()
+        search_row.addWidget(self.shortcuts_search)
+        search_row.addWidget(self.shortcuts_reset_btn)
+        shortcuts_layout.addWidget(self.shortcuts_hint)
+        shortcuts_layout.addLayout(search_row)
+        shortcuts_layout.addWidget(self.shortcuts_table)
+        tabs.addTab(shortcuts, '')
+
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
         layout.addWidget(tabs)
@@ -646,6 +670,12 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tabs.setTabText(4, _('E&xport'))
         self.tabs.setTabText(5, _('&Window'))
         self.tabs.setTabText(6, _('&Canvas'))
+        self.tabs.setTabText(7, _('&Shortcuts'))
+        self.shortcuts_hint.setText(_(
+            'Double-click a shortcut to change it. The defaults are the '
+            'PureRef shortcuts.'))
+        self.shortcuts_search.setPlaceholderText(_('Search...'))
+        self.shortcuts_reset_btn.setText(_('Restore Shortcut Defaults'))
         self.reset_btn.setText(_('&Restore Defaults'))
 
     def on_restore_defaults(self, *args, **kwargs):
@@ -656,3 +686,13 @@ class SettingsDialog(QtWidgets.QDialog):
 
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             BeeSettings().restore_defaults()
+
+    def on_restore_shortcut_defaults(self, *args, **kwargs):
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            _('Restore defaults?'),
+            _('Do you want to restore all keyboard shortcuts to their '
+              'default values?'))
+
+        if reply == QtWidgets.QMessageBox.StandardButton.Yes:
+            KeyboardSettings().restore_defaults()

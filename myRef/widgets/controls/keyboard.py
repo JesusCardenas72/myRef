@@ -205,6 +205,8 @@ class KeyboardShortcutsView(QtWidgets.QTableView):
         self.setAlternatingRowColors(True)
         settings_events.restore_defaults.connect(
             self.on_restore_defaults)
+        settings_events.restore_keyboard_defaults.connect(
+            self.on_restore_defaults)
 
     def on_restore_defaults(self):
         self.viewport().update()

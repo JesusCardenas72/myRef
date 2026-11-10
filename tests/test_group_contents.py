@@ -214,3 +214,21 @@ def test_global_actions_unchanged_with_group_selected(view):
         scene_rect(view, group).left())
     # The children moved along with their group
     assert scene_rect(view, b).left() > scene_rect(view, a).left()
+
+
+def test_regular_action_with_selected_group_affects_contents(view):
+    group, (a, b, c), outside = setup_group(view)
+    view.scene.clearSelection()
+    group.setSelected(True)
+    view.on_action_normalize_height()
+    heights = {round(scene_rect(view, x).height(), 3) for x in (a, b, c)}
+    assert len(heights) == 1
+    assert outside.scale() == 1
+
+
+def test_regular_action_with_group_and_other_item_is_unchanged(view):
+    group, (a, b, c), outside = setup_group(view)
+    view.scene.clearSelection()
+    group.setSelected(True)
+    outside.setSelected(True)
+    assert view.scene.selected_group() is None

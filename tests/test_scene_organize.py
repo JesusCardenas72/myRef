@@ -61,8 +61,8 @@ def test_arrange_without_selection_arranges_all(view):
 @pytest.mark.parametrize('edge,expected1,expected2',
                          [('left', (10, 0), (10, 300)),
                           ('right', (150, 0), (100, 300)),
-                          ('top', (10, 0), (100, 0)),
-                          ('bottom', (10, 250), (100, 300))])
+                          ('top', (10, 0), (100, 100)),
+                          ('bottom', (10, 200), (100, 300))])
 def test_align(view, edge, expected1, expected2):
     item1 = make_item(view, 10, 0, 100, 100)
     item2 = make_item(view, 100, 300, 150, 50)
@@ -337,3 +337,23 @@ def test_center_origin(view):
     center = view.mapToScene(view.viewport().rect().center())
     assert center.x() == approx(0, abs=1)
     assert center.y() == approx(0, abs=1)
+
+
+@pytest.mark.parametrize('edge', ['left', 'right', 'top', 'bottom'])
+def test_align_does_not_overlap(view, edge):
+    items = [make_item(view, 10 * i, 10 * i, 100, 100) for i in range(3)]
+    view.scene.align(edge)
+    rects = [rect(view, item) for item in items]
+    for i, a in enumerate(rects):
+        for b in rects[i + 1:]:
+            assert not a.intersects(b)
+
+
+def test_align_left_keeps_rows_apart_and_closes_gaps(view):
+    a = make_item(view, 50, 0, 100, 100)
+    b = make_item(view, 400, 0, 100, 100)
+    c = make_item(view, 300, 500, 100, 100)
+    view.scene.align('left')
+    assert rect(view, a).left() == 50
+    assert rect(view, b).left() == 150  # next to a, same row
+    assert rect(view, c).left() == 50   # own row, to the edge

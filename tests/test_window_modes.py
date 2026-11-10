@@ -113,8 +113,8 @@ def test_global_hotkey_bindings_off_by_default(view):
 def test_global_hotkey_bindings(view, settings):
     settings.setValue('Window/global_hotkeys', True)
     bindings = view.global_hotkey_bindings()
-    assert bindings['click_through'] == ['Ctrl+Alt+T']
-    assert bindings['opacity_increase'] == ['Ctrl+Alt+Up']
+    assert bindings['click_through'] == ['Ctrl+T']
+    assert bindings['opacity_increase'] == ['Ctrl+Shift++', 'Ctrl+Shift+=']
     # Actions without shortcuts aren't registered
     assert 'opacity_reset' not in bindings
     # Only window actions
