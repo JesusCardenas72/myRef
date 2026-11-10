@@ -79,7 +79,19 @@ Todo vive en `scene.py`, `view.py`, `commands.py` y `fileio/export.py`, reutiliz
 
 ---
 
-## Fase 2 · Modos de ventana (lo que define a PureRef)
+## Fase 2 · Modos de ventana (lo que define a PureRef) ✅ (rama `fase-2`)
+
+> Hecha. Decisiones tomadas: atajos globales con `RegisterHotKey`
+> nativo (sin dependencias nuevas, solo Windows; desactivados por
+> defecto, se activan en Ajustes > Ventana para todas las acciones de
+> ventana a la vez, no con un checkbox por acción). Click-through en
+> Windows con estilos nativos (`WS_EX_TRANSPARENT`) sin recrear la
+> ventana. "Siempre encima de una app" no usa `GWLP_HWNDPARENT` (Windows
+> destruiría nuestra ventana al cerrarse la otra app): vigila qué app
+> está en primer plano. Bloquear ventana impide moverla también desde la
+> barra de título (filtro nativo; sobrescribir `nativeEvent` hace caer
+> PyQt6). Modos al arrancar: normal, último usado, siempre encima,
+> click-through.
 
 Código en `__main__.py` (`BeeRefMainWindow`) y `view.py`.
 
