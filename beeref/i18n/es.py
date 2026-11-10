@@ -220,6 +220,13 @@ TRANSLATIONS = {
      'Set to 0 for no limitation.'):
     ('El tamaño máximo de imagen que se puede cargar (en megabytes). '
      'Usa 0 para no poner límite.'),
+    'Text Editing': 'Edición de texto',
+    'Drawing': 'Dibujo',
+    'Undo History Size:': 'Tamaño del historial de deshacer:',
+    ('How many steps can be undone. Takes effect with the next '
+     'new or opened scene. More steps use more memory.'):
+    ('Cuántos pasos se pueden deshacer. Se aplica a la siguiente escena '
+     'nueva o abierta. Más pasos usan más memoria.'),
     'Arrange Gap:': 'Separación al organizar:',
     'The gap between images when using arrange actions.':
     'La separación entre imágenes al usar las acciones de organizar.',

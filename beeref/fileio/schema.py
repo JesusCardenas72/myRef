@@ -1,4 +1,4 @@
-USER_VERSION = 2
+USER_VERSION = 3
 APPLICATION_ID = 2060242126
 
 
@@ -13,7 +13,9 @@ SCHEMA = [
         scale REAL DEFAULT 1,
         rotation REAL DEFAULT 0,
         flip INTEGER DEFAULT 1,
-        data JSON
+        data JSON,
+        parent_id INTEGER DEFAULT NULL,
+        sort_order REAL DEFAULT NULL
     )
     """,
     """
@@ -37,5 +39,13 @@ MIGRATIONS = {
     2: [
         "ALTER TABLE items ADD COLUMN data JSON",
         "UPDATE items SET data = json_object('filename', filename)",
+    ],
+    # Version 3: Hierarchy support. ``parent_id`` references the
+    # ``items.id`` of the parent item (positions are then relative to
+    # the parent); ``sort_order`` is the item's position in the
+    # hierarchy among its siblings.
+    3: [
+        "ALTER TABLE items ADD COLUMN parent_id INTEGER DEFAULT NULL",
+        "ALTER TABLE items ADD COLUMN sort_order REAL DEFAULT NULL",
     ],
 }

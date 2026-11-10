@@ -63,6 +63,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self.internal_clipboard = []
         self.rubberband_item = RubberbandItem()
         self.multi_select_item = MultiSelectItem()
+        self.pending_parents = {}
         self._clear_ongoing = False
 
     def addItem(self, item):
@@ -594,3 +595,35 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             if selected:
                 item.setSelected(True)
                 item.bring_to_front()
+            if getattr(item, 'pending_parent_id', None) is not None:
+                self.pending_parents[item] = item.pending_parent_id
+        self.resolve_parents()
+
+    def resolve_parents(self):
+        """Assign loaded items to their parents.
+
+        Items loaded from a bee file reference their parent by its
+        save_id. Since items are loaded in batches, a parent might not
+        be in the scene yet; those children stay pending until a later
+        call.
+        """
+
+        if not self.pending_parents:
+            return
+
+        by_save_id = {}
+        for item in self.items():
+            save_id = (getattr(item, 'save_id', None)
+                       or getattr(item, 'original_save_id', None))
+            if save_id is not None:
+                by_save_id[save_id] = item
+
+        for child, parent_id in list(self.pending_parents.items()):
+            parent = by_save_id.get(parent_id)
+            if parent is None or parent is child:
+                continue
+            # Positions are stored relative to the parent, so we don't
+            # need to map them:
+            child.setParentItem(parent)
+            child.pending_parent_id = None
+            del self.pending_parents[child]

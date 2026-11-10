@@ -26,6 +26,8 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
 from beeref import commands
+from beeref.actions.actions import (
+    actions, CONTEXT_GLOBAL, CONTEXT_TEXT_EDIT)
 from beeref.config import BeeSettings
 from beeref.constants import COLORS
 from beeref.i18n import _
@@ -66,6 +68,27 @@ def sort_by_filename(items):
     items_by_filename.sort(key=lambda x: x.filename)
     items_by_save_id.sort(key=lambda x: x.save_id)
     return items_by_filename + items_by_save_id + items_remaining
+
+
+def items_in_order(items):
+    """Order items in the canonical (hierarchy) order.
+
+    This is the order used wherever the order of items matters but
+    isn't chosen explicitly by the user, e.g. for exporting. Items
+    with a ``sort_order`` come first, ordered by it; the remaining
+    items follow, ordered by ``sort_by_filename``.
+    """
+
+    with_order = []
+    without_order = []
+    for item in items:
+        if getattr(item, 'sort_order', None) is not None:
+            with_order.append(item)
+        else:
+            without_order.append(item)
+
+    with_order.sort(key=lambda x: x.sort_order)
+    return with_order + sort_by_filename(without_order)
 
 
 class BeeItemMixin(SelectableMixin):
@@ -111,6 +134,17 @@ class BeeItemMixin(SelectableMixin):
         self.setRotation(kwargs.get('rotation', self.rotation()))
         if kwargs.get('flip', 1) != self.flip():
             self.do_flip()
+        self.update_hierarchy_from_data(**kwargs)
+
+    def update_hierarchy_from_data(self, **kwargs):
+        """Remember hierarchy info from a bee file.
+
+        The parent can only be assigned once it has been added to the
+        scene, see ``BeeGraphicsScene.resolve_parents``.
+        """
+        self.sort_order = kwargs.get(
+            'sort_order', getattr(self, 'sort_order', None))
+        self.pending_parent_id = kwargs.get('parent_id')
 
 
 @register_item
@@ -701,6 +735,7 @@ class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextEditorInteraction)
         self.scene().edit_item = self
+        actions.set_context(CONTEXT_TEXT_EDIT)
 
     def exit_edit_mode(self, commit=True):
         logger.debug(f'Exiting edit mode on {self}')
@@ -709,6 +744,7 @@ class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.setTextCursor(QtGui.QTextCursor(self.document()))
         self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.scene().edit_item = None
+        actions.set_context(CONTEXT_GLOBAL)
         if commit:
             self.scene().undo_stack.push(
                 commands.ChangeText(self, self.toPlainText(), self.old_text))
@@ -791,6 +827,7 @@ class BeeErrorItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.setZValue(kwargs.get('z', self.zValue()))
         self.setScale(kwargs.get('scale', self.scale()))
         self.setRotation(kwargs.get('rotation', self.rotation()))
+        self.update_hierarchy_from_data(**kwargs)
 
     def create_copy(self):
         item = BeeErrorItem(self.toPlainText())

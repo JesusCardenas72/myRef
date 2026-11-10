@@ -27,7 +27,9 @@ Cada feature nueva se considera terminada solo si incluye:
 
 ---
 
-## Fase 0 · Preparación y refactors habilitantes
+## Fase 0 · Preparación y refactors habilitantes ✅ (rama `fase-0`)
+
+> Hecha: 0.1–0.7. Pendiente de decidir antes de la Fase 4: el identificador del formato `.bee` v3 (ver "Decisiones pendientes", punto 4).
 
 | # | Tarea | Esfuerzo | Detalle |
 |---|---|---|---|

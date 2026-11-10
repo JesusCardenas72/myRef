@@ -10,7 +10,7 @@ import pytest
 
 import beeref
 from beeref import constants, i18n
-from beeref.actions.actions import actions
+from beeref.actions.actions import actions, CONTEXT_LABELS
 from beeref.actions.menu_structure import menu_structure
 from beeref.config import KeyboardSettings
 from beeref.config.controls import MouseConfigBase
@@ -58,23 +58,18 @@ def strings_in_definitions():
     for action_list in (KeyboardSettings.MOUSE_ACTIONS,
                         KeyboardSettings.MOUSEWHEEL_ACTIONS):
         strings.update(action.text for action in action_list.values())
+    strings.update(label for label in CONTEXT_LABELS.values() if label)
     strings.update(MouseConfigBase.MODIFIER_MAP)
     strings.update(MouseConfigBase.BUTTON_MAP)
     strings.update(MOUSE_BINDING_BUTTONS)
 
-    groups = (settings_widgets.LanguageWidget,
-              settings_widgets.ConfirmCloseUnsavedWidget,
-              settings_widgets.ImageStorageFormatWidget,
-              settings_widgets.AllocationLimitWidget,
-              settings_widgets.ArrangeGapWidget,
-              settings_widgets.ArrangeDefaultWidget,
-              settings_widgets.TabletPanWidget,
-              settings_widgets.TabletZoomWidget,
-              settings_widgets.TabletZoomInvertedWidget,
-              settings_widgets.TabletTitlebarButtonWidget,
-              settings_widgets.LockIconCornerWidget,
-              settings_widgets.LockIconSizeWidget,
-              settings_widgets.LockIconTransparencyWidget)
+    # All concrete settings widgets (those that edit a settings key):
+    groups = [
+        cls for cls in vars(settings_widgets).values()
+        if isinstance(cls, type)
+        and issubclass(cls, settings_widgets.GroupBase)
+        and getattr(cls, 'KEY', None)]
+    assert groups
     for group in groups:
         strings.update((group.TITLE, group.HELPTEXT))
         strings.add(getattr(group, 'LABEL', None))

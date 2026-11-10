@@ -49,6 +49,28 @@ def is_bee_file(path):
     return os.path.splitext(path)[1] == '.bee'
 
 
+def item_depth(item):
+    """Number of ancestors of the given item."""
+
+    depth = 0
+    parent = item.parentItem()
+    while parent is not None:
+        depth += 1
+        parent = parent.parentItem()
+    return depth
+
+
+def parent_save_id(item):
+    """The save_id of the item's parent, if the parent is a saved item.
+
+    Positions, scales and rotations of child items are stored relative
+    to their parent.
+    """
+
+    parent = item.parentItem()
+    return getattr(parent, 'save_id', None) if parent else None
+
+
 def handle_sqlite_errors(func):
     def wrapper(self, *args, **kwargs):
         try:
@@ -188,19 +210,23 @@ class SQLiteIO:
             for schema in SCHEMA:
                 self.ex(schema)
 
+    ITEM_COLUMNS = ('items.id, type, x, y, z, scale, rotation, flip, '
+                    'items.data, parent_id, sort_order')
+
     @handle_sqlite_errors
     def read(self):
+        # Items with binary data (images):
         rows = self.fetchall(
-            'SELECT items.id, type, x, y, z, scale, rotation, flip, '
-            'items.data, sqlar.data '
+            f'SELECT {self.ITEM_COLUMNS}, sqlar.data '
             'FROM sqlar JOIN items on sqlar.item_id = items.id')
-        # Avoid OUTER JOIN for performance reasons; fetch text items
-        # separately instead
+        # Items of any type without binary data (text, groups,
+        # drawings, ...). Avoid OUTER JOIN for performance reasons;
+        # sqlar.item_id is UNIQUE and thus indexed.
         rows.extend(self.fetchall(
-            'SELECT items.id, type, x, y, z, scale, rotation, flip, '
-            ' items.data, null as data '
+            f'SELECT {self.ITEM_COLUMNS}, null as data '
             'FROM items '
-            'WHERE items.type = "text"'))
+            'WHERE NOT EXISTS '
+            '(SELECT 1 FROM sqlar WHERE sqlar.item_id = items.id)'))
         if self.worker:
             self.worker.begin_processing.emit(len(rows))
 
@@ -214,19 +240,25 @@ class SQLiteIO:
                 'scale': row[5],
                 'rotation': row[6],
                 'flip': row[7],
-                'data': json.loads(row[8]),
+                'data': json.loads(row[8]) if row[8] else {},
+                'parent_id': row[9],
+                'sort_order': row[10],
             }
 
-            if data['type'] == 'pixmap':
-                item = BeePixmapItem(QtGui.QImage())
-                item.pixmap_from_bytes(row[9])
-                if item.pixmap().isNull():
-                    item = data['data']['text'] = (
+            if data['type'] == BeePixmapItem.TYPE:
+                filename = data['data'].get('filename')
+                item = None
+                if row[11] is not None:
+                    item = BeePixmapItem(QtGui.QImage())
+                    item.pixmap_from_bytes(row[11])
+                if item is None or item.pixmap().isNull():
+                    data['data']['text'] = (
                         _('Image could not be loaded: {filename}\n').format(
-                            filename=item.filename)
+                            filename=filename)
                         + _(IMG_LOADING_ERROR_MSG))
                     data['type'] = BeeErrorItem.TYPE
-                data['item'] = item
+                else:
+                    data['item'] = item
 
             self.scene.add_item_later(data)
 
@@ -270,7 +302,9 @@ class SQLiteIO:
         logger.debug(f'Not saving error items: {keep}')
         to_delete = to_delete - keep
 
-        to_save = list(self.scene.items_for_save())
+        # Parents need to be saved before their children so that the
+        # children can reference the parents' save_ids:
+        to_save = sorted(self.scene.items_for_save(), key=item_depth)
         if self.worker:
             self.worker.begin_processing.emit(len(to_save))
         for i, item in enumerate(to_save):
@@ -299,11 +333,12 @@ class SQLiteIO:
     def insert_item(self, item):
         self.ex(
             'INSERT INTO items (type, x, y, z, scale, rotation, flip, '
-            'data) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'data, parent_id, sort_order) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (item.TYPE, item.pos().x(), item.pos().y(), item.zValue(),
              item.scale(), item.rotation(), item.flip(),
-             json.dumps(item.get_extra_save_data())))
+             json.dumps(item.get_extra_save_data()),
+             parent_save_id(item), getattr(item, 'sort_order', None)))
         item.save_id = self.cursor.lastrowid
 
         if hasattr(item, 'pixmap_to_bytes'):
@@ -323,10 +358,11 @@ class SQLiteIO:
         """
         self.ex(
             'UPDATE items SET x=?, y=?, z=?, scale=?, rotation=?, flip=?, '
-            'data=? '
+            'data=?, parent_id=?, sort_order=? '
             'WHERE id=?',
             (item.pos().x(), item.pos().y(), item.zValue(), item.scale(),
              item.rotation(), item.flip(),
              json.dumps(item.get_extra_save_data()),
+             parent_save_id(item), getattr(item, 'sort_order', None),
              item.save_id))
         self.connection.commit()

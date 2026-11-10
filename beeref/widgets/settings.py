@@ -276,6 +276,15 @@ class AllocationLimitWidget(IntegerGroup):
     MAX = 10000
 
 
+class UndoLimitWidget(IntegerGroup):
+    TITLE = 'Undo History Size:'
+    HELPTEXT = ('How many steps can be undone. Takes effect with the next '
+                'new or opened scene. More steps use more memory.')
+    KEY = 'Performance/undo_limit'
+    MIN = 1
+    MAX = 1000
+
+
 class ConfirmCloseUnsavedWidget(SingleCheckboxGroup):
     TITLE = 'Confirm when closing an unsaved file:'
     HELPTEXT = (
@@ -354,6 +363,7 @@ class SettingsDialog(QtWidgets.QDialog):
         misc.setLayout(misc_layout)
         misc_layout.addWidget(LanguageWidget(), 0, 0)
         misc_layout.addWidget(ConfirmCloseUnsavedWidget(), 0, 1)
+        misc_layout.addWidget(UndoLimitWidget(), 1, 0)
         tabs.addTab(misc, '')
 
         # Images & Items

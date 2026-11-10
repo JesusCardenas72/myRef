@@ -4,6 +4,17 @@
 Added
 -----
 
+* The undo history size is now configurable
+  (Settings -> Settings -> Miscellaneous -> Undo History Size).
+* Keyboard shortcuts can now belong to a context (e.g. text editing).
+  While editing a text item, shortcuts of that context take precedence
+  over global ones; the shortcut editor only reports conflicts within
+  the same context.
+* Bee file format version 3: items can reference a parent item and
+  store their position in the hierarchy (preparation for groups).
+  Older bee files are migrated automatically when opened.
+* Items of any type are now loaded from bee files; unknown item types
+  are shown as error items instead of being silently skipped.
 * Added a tablet mode: Pan with the right mouse button and zoom with
   Ctrl + right mouse button. Right-clicking without dragging still opens
   the context menu. Turn it on with the button in the title bar
@@ -58,6 +69,8 @@ Fixed
 Changed
 -------
 
+* File -> Export Images now exports images in a deterministic order
+  (by filename).
 * Arrange Horiszontal/Vertical now also sort by filename instead of
   the previous seemingly random behaviour
 

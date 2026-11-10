@@ -1,6 +1,7 @@
 from PyQt6 import QtGui
 
-from beeref.items import sort_by_filename, BeePixmapItem, BeeTextItem
+from beeref.items import (
+    items_in_order, sort_by_filename, BeePixmapItem, BeeTextItem)
 
 
 def test_sort_by_filename(view):
@@ -44,3 +45,25 @@ def test_sort_by_filename_deals_with_text_items(view):
     item1 = BeeTextItem('Foo')
     item2 = BeeTextItem('Bar')
     assert len(sort_by_filename([item1, item2])) == 2
+
+
+def test_items_in_order_without_sort_order_sorts_by_filename(view):
+    item1 = BeePixmapItem(QtGui.QImage(), filename='b.png')
+    item2 = BeePixmapItem(QtGui.QImage(), filename='a.png')
+    assert items_in_order([item1, item2]) == [item2, item1]
+
+
+def test_items_in_order_sort_order_first(view):
+    item1 = BeePixmapItem(QtGui.QImage(), filename='a.png')
+    item2 = BeeTextItem('foo')
+    item2.sort_order = 2.0
+    item3 = BeeTextItem('bar')
+    item3.sort_order = 1.0
+    item4 = BeePixmapItem(QtGui.QImage(), filename='b.png')
+    result = items_in_order([item1, item2, item3, item4])
+    assert result == [item3, item2, item1, item4]
+
+
+def test_items_in_order_accepts_iterators(view):
+    item = BeeTextItem('foo')
+    assert items_in_order(iter([item])) == [item]

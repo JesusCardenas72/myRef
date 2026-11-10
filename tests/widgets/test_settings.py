@@ -191,3 +191,19 @@ def test_settings_dialog_on_restore_defaults(msg_mock, settings, view):
     assert settings.valueOrDefault('Items/image_storage_format') == 'best'
     assert settings.valueOrDefault('Items/arrange_gap') == 0
     assert settings.valueOrDefault('Save/confirm_close_unsaved') is True
+
+
+def test_undo_limit_widget_initialises_input_from_settings(settings, view):
+    from beeref.widgets.settings import UndoLimitWidget
+    settings.setValue('Performance/undo_limit', 300)
+    widget = UndoLimitWidget()
+    assert widget.input.value() == 300
+    assert widget.input.minimum() == 1
+    assert widget.input.maximum() == 1000
+
+
+def test_undo_limit_widget_saves_value(settings, view):
+    from beeref.widgets.settings import UndoLimitWidget
+    widget = UndoLimitWidget()
+    widget.input.setValue(42)
+    assert settings.valueOrDefault('Performance/undo_limit') == 42

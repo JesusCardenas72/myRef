@@ -111,3 +111,11 @@ def item():
 def qapp():
     from beeref.__main__ import BeeRefApplication
     yield BeeRefApplication([])
+
+
+@pytest.fixture(autouse=True)
+def reset_shortcut_context():
+    from beeref.actions.actions import actions, CONTEXT_GLOBAL
+    actions.active_context = CONTEXT_GLOBAL
+    yield
+    actions.active_context = CONTEXT_GLOBAL

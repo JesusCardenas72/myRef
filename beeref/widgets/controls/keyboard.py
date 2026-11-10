@@ -19,7 +19,7 @@ import logging
 from PyQt6 import QtWidgets, QtCore
 
 from beeref import constants
-from beeref.actions.actions import actions
+from beeref.actions.actions import actions, CONTEXT_LABELS
 from beeref.config import KeyboardSettings, settings_events
 from beeref.i18n import _
 
@@ -31,6 +31,9 @@ def action_label(action):
     """The action's name and the menus it is in, as shown to the user."""
 
     parts = [_(part) for part in action.menu_path + [action.text]]
+    context_label = CONTEXT_LABELS.get(action.context)
+    if context_label:
+        parts.insert(0, _(context_label))
     return ': '.join(parts).replace('&', '').removesuffix('...')
 
 
@@ -64,7 +67,7 @@ class KeyboardShortcutsEditor(QtWidgets.QKeySequenceEdit):
         self.remove_from_other = None
         self.finished_last_called_with = shortcut
         for action in actions.values():
-            if action == self.action:
+            if not self.action.conflicts_with(action):
                 continue
             if shortcut in action.get_shortcuts():
                 msg = _('<p>This shortcut is already used for:</p>'

@@ -6,7 +6,7 @@ from PyQt6 import QtWidgets
 from beeref.actions import ActionsMixin
 from beeref.actions.actions import Action
 from beeref.actions.menu_structure import MENU_SEPARATOR
-from beeref.utils import ActionList
+from beeref.actions.actions import BeeActionList as ActionList
 
 
 class FooWidget(QtWidgets.QWidget, ActionsMixin):
