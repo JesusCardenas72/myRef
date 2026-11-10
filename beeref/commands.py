@@ -18,6 +18,16 @@ import time
 from PyQt6 import QtCore, QtGui
 
 
+def local_anchor(item, anchor):
+    """Map a scene anchor to item coordinates.
+
+    An anchor of ``None`` means the item's own center.
+    """
+    if anchor is None:
+        return item.center
+    return item.mapFromScene(anchor)
+
+
 class InsertItems(QtGui.QUndoCommand):
 
     def __init__(self, scene, items, position=None, ignore_first_redo=False):
@@ -93,7 +103,10 @@ class MoveItemsBy(QtGui.QUndoCommand):
 
 
 class ScaleItemsBy(QtGui.QUndoCommand):
-    """Scale items by a given factor around the given anchor."""
+    """Scale items by a given factor around the given anchor.
+
+    An anchor of ``None`` scales each item around its own center.
+    """
 
     def __init__(self, items, factor, anchor, ignore_first_redo=False):
         super().__init__('Scale items')
@@ -108,16 +121,19 @@ class ScaleItemsBy(QtGui.QUndoCommand):
             return
         for item in self.items:
             item.setScale(item.scale() * self.factor,
-                          item.mapFromScene(self.anchor))
+                          local_anchor(item, self.anchor))
 
     def undo(self):
         for item in self.items:
             item.setScale(item.scale() / self.factor,
-                          item.mapFromScene(self.anchor))
+                          local_anchor(item, self.anchor))
 
 
 class RotateItemsBy(QtGui.QUndoCommand):
-    """Rotate items by a given delta around the given anchor."""
+    """Rotate items by a given delta around the given anchor.
+
+    An anchor of ``None`` rotates each item around its own center.
+    """
 
     def __init__(self, items, delta, anchor, ignore_first_redo=False):
         super().__init__('Rotate items')
@@ -133,12 +149,12 @@ class RotateItemsBy(QtGui.QUndoCommand):
         for item in self.items:
             item.setRotation(
                 item.rotation() + self.delta * item.flip(),
-                item.mapFromScene(self.anchor))
+                local_anchor(item, self.anchor))
 
     def undo(self):
         for item in self.items:
             item.setRotation(item.rotation() - self.delta * item.flip(),
-                             item.mapFromScene(self.anchor))
+                             local_anchor(item, self.anchor))
 
 
 class NormalizeItems(QtGui.QUndoCommand):

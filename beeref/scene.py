@@ -551,6 +551,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
         if event.button() == Qt.MouseButton.LeftButton:
             self.event_start = event.scenePos()
+            self.last_move_delta = None
             item_at_pos = self.itemAt(
                 event.scenePos(), self.views()[0].transform())
 
@@ -599,15 +600,41 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             self.setSelectionArea(self.rubberband_item.shape())
             self.views()[0].reset_previous_transform()
         super().mouseMoveEvent(event)
+        if self.is_moving_items():
+            # Qt has moved the items by the raw mouse delta; correct
+            # that if the move is constrained to an axis
+            raw_delta = event.scenePos() - self.event_start
+            delta = self.constrain_move_delta(raw_delta, event.modifiers())
+            correction = raw_delta - delta
+            if not correction.isNull():
+                for item in self.selectedItems(user_only=True):
+                    if item.flags() & item.GraphicsItemFlag.ItemIsMovable:
+                        item.setPos(item.pos() - correction)
+            self.last_move_delta = delta
+
+    def is_moving_items(self):
+        return (self.active_mode == self.MOVE_MODE
+                and self.has_selection()
+                and self.multi_select_item.active_mode is None
+                and self.selectedItems()[0].active_mode is None)
+
+    @staticmethod
+    def constrain_move_delta(delta, modifiers):
+        """With Shift held, restrict moving to the dominant axis."""
+
+        if modifiers == Qt.KeyboardModifier.ShiftModifier:
+            if abs(delta.x()) >= abs(delta.y()):
+                return QtCore.QPointF(delta.x(), 0)
+            return QtCore.QPointF(0, delta.y())
+        return QtCore.QPointF(delta)
 
     def mouseReleaseEvent(self, event):
         if self.active_mode == self.RUBBERBAND_MODE:
             self.end_rubberband_mode()
-        if (self.active_mode == self.MOVE_MODE
-                and self.has_selection()
-                and self.multi_select_item.active_mode is None
-                and self.selectedItems()[0].active_mode is None):
-            delta = event.scenePos() - self.event_start
+        if self.is_moving_items():
+            delta = getattr(self, 'last_move_delta', None)
+            if delta is None:
+                delta = event.scenePos() - self.event_start
             if not delta.isNull():
                 self.undo_stack.push(
                     commands.MoveItemsBy(self.selectedItems(),
