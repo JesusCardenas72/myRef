@@ -3,14 +3,14 @@ from unittest.mock import patch, MagicMock
 from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtCore import Qt
 
-from beeref.items import BeeTextItem, item_registry
+from myRef.items import BeeTextItem, item_registry
 
 
 def test_in_items_registry():
     assert item_registry['text'] == BeeTextItem
 
 
-@patch('beeref.selection.SelectableMixin.init_selectable')
+@patch('myRef.selection.SelectableMixin.init_selectable')
 def test_init(selectable_mock, qapp):
     item = BeeTextItem('foo bar')
     assert item.save_id is None
@@ -68,7 +68,7 @@ def test_get_extra_save_data(qapp):
     assert 'background' not in data
 
 
-@patch('beeref.items.BeeTextItem.boundingRect')
+@patch('myRef.items.BeeTextItem.boundingRect')
 def test_contains_when_inside_bounds(brect_mock, qapp):
     brect_mock.return_value = QtCore.QRectF(20, 30, 50, 50)
     item = BeeTextItem('foo bar')
@@ -76,7 +76,7 @@ def test_contains_when_inside_bounds(brect_mock, qapp):
     brect_mock.assert_called_once_with()
 
 
-@patch('beeref.items.BeeTextItem.boundingRect')
+@patch('myRef.items.BeeTextItem.boundingRect')
 def test_contains_when_outside_bounds(brect_mock, qapp):
     brect_mock.return_value = QtCore.QRectF(20, 30, 50, 50)
     item = BeeTextItem('foo bar')
@@ -222,7 +222,7 @@ def test_enter_edit_mode(view):
 
 
 @patch('PyQt6.QtGui.QTextCursor')
-@patch('beeref.items.BeeTextItem.setTextCursor')
+@patch('myRef.items.BeeTextItem.setTextCursor')
 def test_exit_edit_mode(setcursor_mock, cursor_mock, view):
     item = BeeTextItem('foo bar')
     item.edit_mode = True
@@ -256,7 +256,7 @@ def test_exit_edit_mode_when_text_empty(view):
 
 
 @patch('PyQt6.QtGui.QTextCursor')
-@patch('beeref.items.BeeTextItem.setTextCursor')
+@patch('myRef.items.BeeTextItem.setTextCursor')
 def test_exit_edit_mode_when_commit_false(setcursor_mock, cursor_mock, view):
     item = BeeTextItem('foo bar')
     item.edit_mode = True
@@ -275,7 +275,7 @@ def test_exit_edit_mode_when_commit_false(setcursor_mock, cursor_mock, view):
 
 
 @patch('PyQt6.QtWidgets.QGraphicsTextItem.keyPressEvent')
-@patch('beeref.items.BeeTextItem.exit_edit_mode')
+@patch('myRef.items.BeeTextItem.exit_edit_mode')
 def test_key_press_event_any_key(exit_mock, key_press_mock, view):
     item = BeeTextItem('foo bar')
     view.scene.addItem(item)
@@ -290,7 +290,7 @@ def test_key_press_event_any_key(exit_mock, key_press_mock, view):
 
 
 @patch('PyQt6.QtWidgets.QGraphicsTextItem.keyPressEvent')
-@patch('beeref.items.BeeTextItem.exit_edit_mode')
+@patch('myRef.items.BeeTextItem.exit_edit_mode')
 def test_key_press_event_shift_return(exit_mock, key_press_mock, view):
     item = BeeTextItem('foo bar')
     view.scene.addItem(item)
@@ -307,7 +307,7 @@ def test_key_press_event_shift_return(exit_mock, key_press_mock, view):
 
 
 @patch('PyQt6.QtWidgets.QGraphicsTextItem.keyPressEvent')
-@patch('beeref.items.BeeTextItem.exit_edit_mode')
+@patch('myRef.items.BeeTextItem.exit_edit_mode')
 def test_key_press_event_shift_enter(exit_mock, key_press_mock, view):
     item = BeeTextItem('foo bar')
     view.scene.addItem(item)
@@ -324,7 +324,7 @@ def test_key_press_event_shift_enter(exit_mock, key_press_mock, view):
 
 
 @patch('PyQt6.QtWidgets.QGraphicsTextItem.keyPressEvent')
-@patch('beeref.items.BeeTextItem.exit_edit_mode')
+@patch('myRef.items.BeeTextItem.exit_edit_mode')
 def test_key_press_event_return(exit_mock, key_press_mock, view):
     item = BeeTextItem('foo bar')
     view.scene.addItem(item)
@@ -338,7 +338,7 @@ def test_key_press_event_return(exit_mock, key_press_mock, view):
 
 
 @patch('PyQt6.QtWidgets.QGraphicsTextItem.keyPressEvent')
-@patch('beeref.items.BeeTextItem.exit_edit_mode')
+@patch('myRef.items.BeeTextItem.exit_edit_mode')
 def test_key_press_event_enter(exit_mock, key_press_mock, view):
     item = BeeTextItem('foo bar')
     view.scene.addItem(item)
@@ -352,7 +352,7 @@ def test_key_press_event_enter(exit_mock, key_press_mock, view):
 
 
 @patch('PyQt6.QtWidgets.QGraphicsTextItem.keyPressEvent')
-@patch('beeref.items.BeeTextItem.exit_edit_mode')
+@patch('myRef.items.BeeTextItem.exit_edit_mode')
 def test_key_press_event_escape(exit_mock, key_press_mock, view):
     item = BeeTextItem('foo bar')
     view.scene.addItem(item)
@@ -374,7 +374,7 @@ def test_item_to_clipboard(qapp):
 
 
 def test_edit_mode_switches_shortcut_context(view):
-    from beeref.actions.actions import (
+    from myRef.actions.actions import (
         actions, CONTEXT_GLOBAL, CONTEXT_TEXT_EDIT)
     item = BeeTextItem('foo bar')
     view.scene.addItem(item)
@@ -385,7 +385,7 @@ def test_edit_mode_switches_shortcut_context(view):
 
 
 def test_clear_scene_resets_shortcut_context(view):
-    from beeref.actions.actions import (
+    from myRef.actions.actions import (
         actions, CONTEXT_GLOBAL, CONTEXT_TEXT_EDIT)
     actions.set_context(CONTEXT_TEXT_EDIT)
     view.clear_scene()

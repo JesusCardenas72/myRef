@@ -1,6 +1,6 @@
 from PyQt6 import QtGui
 
-from beeref.items import (
+from myRef.items import (
     items_in_order, sort_by_filename, BeePixmapItem, BeeTextItem)
 
 

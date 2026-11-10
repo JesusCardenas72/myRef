@@ -1,6 +1,6 @@
 from PyQt6 import QtGui
 
-from beeref.assets import BeeAssets
+from myRef.assets import BeeAssets
 
 
 def test_singleton(view):

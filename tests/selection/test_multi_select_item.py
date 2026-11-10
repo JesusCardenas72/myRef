@@ -3,11 +3,11 @@ from unittest.mock import patch, MagicMock
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt
 
-from beeref.items import BeePixmapItem
-from beeref.selection import MultiSelectItem
+from myRef.items import BeePixmapItem
+from myRef.selection import MultiSelectItem
 
 
-@patch('beeref.selection.SelectableMixin.init_selectable')
+@patch('myRef.selection.SelectableMixin.init_selectable')
 def test_init(selectable_mock):
     item = MultiSelectItem()
     assert hasattr(item, 'save_id') is False
@@ -116,7 +116,7 @@ def test_mouse_press_event_when_ctrl_leftclick(mouse_mock):
     mouse_mock.assert_not_called()
 
 
-@patch('beeref.selection.SelectableMixin.mousePressEvent')
+@patch('myRef.selection.SelectableMixin.mousePressEvent')
 def test_mouse_press_event_when_leftclick(mouse_mock):
     item = MultiSelectItem()
     item.fit_selection_area(QtCore.QRectF(0, 0, 100, 80))

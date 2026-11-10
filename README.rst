@@ -1,11 +1,11 @@
-BeeRef — A Simple Reference Image Viewer
+myRef — A Simple Reference Image Viewer
 ========================================
 
 .. raw:: html
 
-   <img align="left" width="100" height="100" src="https://raw.githubusercontent.com/rbreu/beeref/main/beeref/assets/logo.png">
+   <img align="left" width="100" height="100" src="https://raw.githubusercontent.com/rbreu/beeref/main/myRef/assets/logo.png">
 
-`BeeRef <https://beeref.org>`_ lets you quickly arrange your reference images and view them while you create. Its minimal interface is designed not to get in the way of your creative process.
+`myRef <https://beeref.org>`_ lets you quickly arrange your reference images and view them while you create. Its minimal interface is designed not to get in the way of your creative process.
 
 |python-version| |github-ci-flake8| |github-ci-pytest| |codecov| |downloads-total| |downloads-latest|
 
@@ -38,9 +38,9 @@ Stable Release
 
 Get the file for your operating system (Windows, Linux, macOS) from the `latest release <https://github.com/rbreu/beeref/releases>`_. The different Linux versions are built on different versions of Ubuntu. The should work on other distros as well, but you might have to try which one works.
 
-**Linux users** need to give the file executable rights before running it. Optional: If you want to have BeeRef appear in the app menu, save the desktop file from the `release section <https://github.com/rbreu/beeref/releases>`_ in ``~/.local/share/applications``, save the `logo <https://raw.githubusercontent.com/rbreu/beeref/main/beeref/assets/logo.png>`_, and adjust the path names in the desktop file to match the location of your BeeRef installation.
+**Linux users** need to give the file executable rights before running it. Optional: If you want to have myRef appear in the app menu, save the desktop file from the `release section <https://github.com/rbreu/beeref/releases>`_ in ``~/.local/share/applications``, save the `logo <https://raw.githubusercontent.com/rbreu/beeref/main/myRef/assets/logo.png>`_, and adjust the path names in the desktop file to match the location of your myRef installation.
 
-**MacOS X users**, look at `detailed instructions <https://beeref.org/macosx-run.html>`_ if you have problems running BeeRef.
+**MacOS X users**, look at `detailed instructions <https://beeref.org/macosx-run.html>`_ if you have problems running myRef.
 
 Follow further releases via the `atom feed <https://github.com/rbreu/beeref/releases.atom>`_.
 
@@ -52,7 +52,7 @@ To get the current development version, you need to have a working Python 3 envi
 
   pip install git+https://github.com/rbreu/beeref.git
 
-Then run ``beeref`` or ``beeref filename.bee``.
+Then run ``myRef`` or ``myRef filename.bee``.
 
 
 Features
@@ -62,7 +62,7 @@ Features
 * Mass-scale images to the same width, height or size
 * Mass-arrange images vertically, horizontally or for optimal usage of space
 * Add text notes
-* Enable always-on-top-mode and disable the title bar to let the BeeRef window unobtrusively float above your art program:
+* Enable always-on-top-mode and disable the title bar to let the myRef window unobtrusively float above your art program:
 
 .. image:: https://github.com/rbreu/beeref/blob/main/images/screenshot.png
 
@@ -74,24 +74,24 @@ All images are embedded into the bee file as PNG or JPG. The bee file format is 
 
   sqlite3 myfile.bee -Axv
 
-Options for exporting from inside BeeRef are planned, but the above always works independently of BeeRef.
+Options for exporting from inside myRef are planned, but the above always works independently of myRef.
 
 
 Troubleshooting
 ---------------
 
-You can access the log output via *Help -> Show Debug Log*. In case BeeRef doesn't start at all, you can find the log file here:
+You can access the log output via *Help -> Show Debug Log*. In case myRef doesn't start at all, you can find the log file here:
 
 Windows:
 
-  C:\Documents and Settings\USERNAME\Application Data\BeeRef\BeeRef.log
+  C:\Documents and Settings\USERNAME\Application Data\myRef\myRef.log
 
 Linux and MacOS:
 
-  /home/USERNAME/.config/BeeRef/BeeRef.log
+  /home/USERNAME/.config/myRef/myRef.log
 
 
 Notes for developers
 --------------------
 
-BeeRef is written in Python and PyQt6. For more info, see `CONTRIBUTING.rst <https://github.com/rbreu/beeref/blob/main/CONTRIBUTING.rst>`_.
+myRef is written in Python and PyQt6. For more info, see `CONTRIBUTING.rst <https://github.com/rbreu/beeref/blob/main/CONTRIBUTING.rst>`_.

@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 from PyQt6 import QtCore, QtGui
 import pytest
 
-from beeref.fileio import schema, is_bee_file
-from beeref.fileio.errors import BeeFileIOError
-from beeref.fileio.sql import SQLiteIO
-from beeref.items import BeePixmapItem, BeeTextItem, BeeErrorItem
+from myRef.fileio import schema, is_bee_file
+from myRef.fileio.errors import BeeFileIOError
+from myRef.fileio.sql import SQLiteIO
+from myRef.items import BeePixmapItem, BeeTextItem, BeeErrorItem
 
 
 @pytest.mark.parametrize('filename,expected',
@@ -26,13 +26,13 @@ def test_sqliteio_migrate_does_nothing_when_version_ok(tmpfile):
     io.ex('PRAGMA user_version=%s' % schema.USER_VERSION)
     io.connection.commit()
     del io
-    with patch('beeref.fileio.sql.SQLiteIO.ex') as ex_mock:
+    with patch('myRef.fileio.sql.SQLiteIO.ex') as ex_mock:
         SQLiteIO(tmpfile, MagicMock())
         ex_mock.assert_not_called()
 
 
-@patch('beeref.fileio.sql.USER_VERSION', 3)
-@patch('beeref.fileio.sql.MIGRATIONS', {
+@patch('myRef.fileio.sql.USER_VERSION', 3)
+@patch('myRef.fileio.sql.MIGRATIONS', {
     2: ['CREATE TABLE foo (col1 INT)',
         'CREATE TABLE bar (baz INT)'],
     3: ['ALTER TABLE foo ADD COLUMN col2 TEXT']})
@@ -48,8 +48,8 @@ def test_sqliteio_migrate_migrates(tmpfile):
     assert result[0] == 3
 
 
-@patch('beeref.fileio.sql.USER_VERSION', 3)
-@patch('beeref.fileio.sql.MIGRATIONS', {
+@patch('myRef.fileio.sql.USER_VERSION', 3)
+@patch('myRef.fileio.sql.MIGRATIONS', {
     2: ['CREATE TABLE foo (col1 INT)',
         'CREATE TABLE bar (baz INT)'],
     3: ['ALTER TABLE foo ADD COLUMN col2 TEXT']})
@@ -152,7 +152,7 @@ def test_sqliteio_create_schema_on_new_when_create_new(tmpfile):
     scene_mock.clear_save_ids.assert_called_once()
 
 
-@patch('beeref.fileio.sql.SQLiteIO._migrate')
+@patch('myRef.fileio.sql.SQLiteIO._migrate')
 def test_sqliteio_create_schema_on_new_when_not_create_new(
         migrate_mock, tmpfile):
     scene_mock = MagicMock()

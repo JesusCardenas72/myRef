@@ -7,18 +7,18 @@ import pytest
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
-from beeref import commands
-from beeref import hierarchy
-from beeref.actions.actions import actions
-from beeref.fileio.export import SceneToPixmapExporter, SceneToSVGExporter
-from beeref.fileio.sql import SQLiteIO
-from beeref.items import (
+from myRef import commands
+from myRef import hierarchy
+from myRef.actions.actions import actions
+from myRef.fileio.export import SceneToPixmapExporter, SceneToSVGExporter
+from myRef.fileio.sql import SQLiteIO
+from myRef.items import (
     BeeGroupItem,
     BeePixmapItem,
     BeeTextItem,
     items_in_order,
 )
-from beeref.widgets.hierarchy import CommentDialog, HierarchyTree
+from myRef.widgets.hierarchy import CommentDialog, HierarchyTree
 
 
 def make_image(view, x=0, y=0, w=100, h=80, name=None, selected=False):

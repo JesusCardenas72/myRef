@@ -8,7 +8,7 @@ from PyQt6 import QtGui, QtWidgets
 
 
 def pytest_configure(config):
-    # Ignore logging configuration for BeeRef during test runs. This
+    # Ignore logging configuration for myRef during test runs. This
     # avoids logging to the regular log file and spamming test output
     # with debug messages.
     #
@@ -19,8 +19,8 @@ def pytest_configure(config):
 
 
 @pytest.fixture(autouse=True)
-def reset_beeref_actions():
-    from beeref.actions.actions import actions
+def reset_myRef_actions():
+    from myRef.actions.actions import actions
     for key in list(actions.keys()):
         if key.startswith('recent_files_'):
             actions.pop(key)
@@ -29,8 +29,8 @@ def reset_beeref_actions():
 @pytest.fixture(autouse=True)
 def english_ui():
     """Tests expect English strings, regardless of the system language."""
-    from beeref import i18n
-    with patch('beeref.i18n.detect_system_language', return_value='en'):
+    from myRef import i18n
+    with patch('myRef.i18n.detect_system_language', return_value='en'):
         i18n.set_language('en')
         yield
         i18n.set_language('en')
@@ -38,7 +38,7 @@ def english_ui():
 
 @pytest.fixture(autouse=True)
 def commandline_args():
-    config_patcher = patch('beeref.view.commandline_args')
+    config_patcher = patch('myRef.view.commandline_args')
     config_mock = config_patcher.start()
     config_mock.filenames = []
     yield config_mock
@@ -47,8 +47,8 @@ def commandline_args():
 
 @pytest.fixture(autouse=True)
 def settings(tmpdir):
-    from beeref.config import BeeSettings
-    dir_patcher = patch('beeref.config.BeeSettings.get_settings_dir',
+    from myRef.config import BeeSettings
+    dir_patcher = patch('myRef.config.BeeSettings.get_settings_dir',
                         return_value=tmpdir.dirname)
     dir_patcher.start()
     settings = BeeSettings()
@@ -59,8 +59,8 @@ def settings(tmpdir):
 
 @pytest.fixture(autouse=True)
 def kbsettings(tmpdir):
-    from beeref.config import KeyboardSettings
-    dir_patcher = patch('beeref.config.BeeSettings.get_settings_dir',
+    from myRef.config import KeyboardSettings
+    dir_patcher = patch('myRef.config.BeeSettings.get_settings_dir',
                         return_value=tmpdir.dirname)
     dir_patcher.start()
     kbsettings = KeyboardSettings()
@@ -71,9 +71,9 @@ def kbsettings(tmpdir):
 
 @pytest.fixture
 def main_window(qtbot):
-    from beeref.__main__ import BeeRefMainWindow
+    from myRef.__main__ import myRefMainWindow
     app = QtWidgets.QApplication.instance()
-    main = BeeRefMainWindow(app)
+    main = myRefMainWindow(app)
     qtbot.addWidget(main)
     yield main
 
@@ -103,19 +103,19 @@ def tmpfile(tmpdir):
 
 @pytest.fixture
 def item():
-    from beeref.items import BeePixmapItem
+    from myRef.items import BeePixmapItem
     yield BeePixmapItem(QtGui.QImage(10, 10, QtGui.QImage.Format.Format_RGB32))
 
 
 @pytest.fixture(scope="session")
 def qapp():
-    from beeref.__main__ import BeeRefApplication
-    yield BeeRefApplication([])
+    from myRef.__main__ import myRefApplication
+    yield myRefApplication([])
 
 
 @pytest.fixture(autouse=True)
 def reset_shortcut_context():
-    from beeref.actions.actions import actions, CONTEXT_GLOBAL
+    from myRef.actions.actions import actions, CONTEXT_GLOBAL
     actions.active_context = CONTEXT_GLOBAL
     yield
     actions.active_context = CONTEXT_GLOBAL

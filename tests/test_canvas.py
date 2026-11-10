@@ -5,11 +5,11 @@ import pytest
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt
 
-from beeref import commands
-from beeref import snapping
-from beeref.actions.actions import actions
-from beeref.items import BeePixmapItem
-from beeref.widgets.settings import (
+from myRef import commands
+from myRef import snapping
+from myRef.actions.actions import actions
+from myRef.items import BeePixmapItem
+from myRef.widgets.settings import (
     CanvasGridSizeWidget,
     CanvasGridStyleWidget,
     CanvasHighlightWidget,

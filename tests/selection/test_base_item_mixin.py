@@ -2,7 +2,7 @@ from unittest.mock import patch, MagicMock
 
 from PyQt6 import QtCore, QtGui
 
-from beeref.items import BeePixmapItem
+from myRef.items import BeePixmapItem
 
 
 def test_set_scale(qapp, imgfilename3x3):

@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 from PyQt6 import QtWidgets
 
-from beeref import i18n
-from beeref.widgets.settings import (
+from myRef import i18n
+from myRef.widgets.settings import (
     ArrangeGapWidget,
     ConfirmCloseUnsavedWidget,
     ImageStorageFormatWidget,
@@ -45,12 +45,12 @@ def test_language_widget_language_names_are_not_translated(settings, view):
 
 def test_settings_dialog_retranslates_on_language_change(settings, view):
     dialog = SettingsDialog(view)
-    assert dialog.windowTitle() == 'BeeRef Settings'
+    assert dialog.windowTitle() == 'myRef Settings'
     assert dialog.tabs.tabText(0) == '&Miscellaneous'
     assert dialog.reset_btn.text() == '&Restore Defaults'
 
     settings.setValue('Interface/language', 'es')
-    assert dialog.windowTitle() == 'Configuración de BeeRef'
+    assert dialog.windowTitle() == 'Configuración de myRef'
     assert dialog.tabs.tabText(0) == '&Varios'
     assert dialog.tabs.tabText(1) == '&Imágenes y elementos'
     assert dialog.reset_btn.text() == 'Restablecer valores &predeterminados'
@@ -194,7 +194,7 @@ def test_settings_dialog_on_restore_defaults(msg_mock, settings, view):
 
 
 def test_undo_limit_widget_initialises_input_from_settings(settings, view):
-    from beeref.widgets.settings import UndoLimitWidget
+    from myRef.widgets.settings import UndoLimitWidget
     settings.setValue('Performance/undo_limit', 300)
     widget = UndoLimitWidget()
     assert widget.input.value() == 300
@@ -203,7 +203,7 @@ def test_undo_limit_widget_initialises_input_from_settings(settings, view):
 
 
 def test_undo_limit_widget_saves_value(settings, view):
-    from beeref.widgets.settings import UndoLimitWidget
+    from myRef.widgets.settings import UndoLimitWidget
     widget = UndoLimitWidget()
     widget.input.setValue(42)
     assert settings.valueOrDefault('Performance/undo_limit') == 42

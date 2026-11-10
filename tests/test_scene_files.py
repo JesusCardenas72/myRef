@@ -17,7 +17,7 @@ def test_open_last_scene_opens_most_recent(view, settings, tmpdir):
     open_mock.assert_called_once_with(os.path.abspath(filename))
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_open_last_scene_without_recent_files(notify_mock, view, settings):
     with patch.object(view, 'on_action_open_recent_file') as open_mock:
         view.on_action_open_last_scene()
@@ -25,7 +25,7 @@ def test_open_last_scene_without_recent_files(notify_mock, view, settings):
     notify_mock.assert_called_once()
 
 
-@patch('beeref.widgets.BeeNotification')
+@patch('myRef.widgets.BeeNotification')
 def test_show_in_file_browser_unsaved(notify_mock, view):
     view.filename = None
     with patch('PyQt6.QtCore.QProcess.startDetached') as proc_mock:
@@ -34,7 +34,7 @@ def test_show_in_file_browser_unsaved(notify_mock, view):
     notify_mock.assert_called_once()
 
 
-@patch('beeref.view.sys.platform', 'win32')
+@patch('myRef.view.sys.platform', 'win32')
 def test_show_in_file_browser_windows(view, tmpdir):
     view.filename = os.path.join(tmpdir, 'test.bee')
     with patch('PyQt6.QtCore.QProcess.startDetached') as proc_mock:
@@ -43,7 +43,7 @@ def test_show_in_file_browser_windows(view, tmpdir):
         'explorer', ['/select,', os.path.normpath(view.filename)])
 
 
-@patch('beeref.view.sys.platform', 'darwin')
+@patch('myRef.view.sys.platform', 'darwin')
 def test_show_in_file_browser_mac(view, tmpdir):
     view.filename = os.path.join(tmpdir, 'test.bee')
     with patch('PyQt6.QtCore.QProcess.startDetached') as proc_mock:
@@ -52,7 +52,7 @@ def test_show_in_file_browser_mac(view, tmpdir):
         'open', ['-R', os.path.abspath(view.filename)])
 
 
-@patch('beeref.view.sys.platform', 'linux')
+@patch('myRef.view.sys.platform', 'linux')
 def test_show_in_file_browser_linux(view, tmpdir):
     view.filename = os.path.join(tmpdir, 'test.bee')
     with patch('PyQt6.QtGui.QDesktopServices.openUrl') as open_mock:

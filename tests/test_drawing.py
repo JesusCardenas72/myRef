@@ -4,10 +4,10 @@ from xml.etree import ElementTree as ET
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt
 
-from beeref import commands, drawing
-from beeref.actions.actions import actions, CONTEXT_DRAW, CONTEXT_GLOBAL
-from beeref.items import BeeDrawingItem, BeeTextItem, item_registry
-from beeref.widgets import drawing as draw_widgets
+from myRef import commands, drawing
+from myRef.actions.actions import actions, CONTEXT_DRAW, CONTEXT_GLOBAL
+from myRef.items import BeeDrawingItem, BeeTextItem, item_registry
+from myRef.widgets import drawing as draw_widgets
 
 
 P = QtCore.QPointF
@@ -459,7 +459,7 @@ def test_draw_toolbar_retranslate(view):
 # Export and files
 
 def test_svg_export_contains_paths(view):
-    from beeref.fileio.export import SceneToSVGExporter
+    from myRef.fileio.export import SceneToSVGExporter
     item = BeeDrawingItem(shapes=[line(0, 0, 100, 0)])
     view.scene.addItem(item)
     item.setPos(10, 20)
@@ -476,7 +476,7 @@ def test_svg_export_contains_paths(view):
 def test_save_and_load_drawing(view, tmpfile):
     item = BeeDrawingItem(shapes=[line(0, 0, 100, 0, color='#ff123456')])
     view.scene.addItem(item)
-    from beeref.fileio import load_bee, save_bee
+    from myRef.fileio import load_bee, save_bee
     save_bee(tmpfile, view.scene, create_new=True)
     view.scene.clear()
     load_bee(tmpfile, view.scene)

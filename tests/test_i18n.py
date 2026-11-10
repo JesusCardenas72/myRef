@@ -8,18 +8,18 @@ from unittest.mock import patch
 from PyQt6 import QtCore, QtGui, QtWidgets
 import pytest
 
-import beeref
-from beeref import constants, i18n
-from beeref.actions.actions import actions, CONTEXT_LABELS
-from beeref.actions.menu_structure import menu_structure
-from beeref.config import KeyboardSettings
-from beeref.config.controls import MouseConfigBase
-from beeref.config.settings import MOUSE_BINDING_BUTTONS
-from beeref.fileio.errors import IMG_LOADING_ERROR_MSG
-from beeref.i18n import _, es
-from beeref.widgets import settings as settings_widgets
-from beeref.widgets.controls.common import MouseControlsModelBase
-from beeref.widgets.controls.keyboard import KeyboardShortcutsModel
+import myRef
+from myRef import constants, i18n
+from myRef.actions.actions import actions, CONTEXT_LABELS
+from myRef.actions.menu_structure import menu_structure
+from myRef.config import KeyboardSettings
+from myRef.config.controls import MouseConfigBase
+from myRef.config.settings import MOUSE_BINDING_BUTTONS
+from myRef.fileio.errors import IMG_LOADING_ERROR_MSG
+from myRef.i18n import _, es
+from myRef.widgets import settings as settings_widgets
+from myRef.widgets.controls.common import MouseControlsModelBase
+from myRef.widgets.controls.keyboard import KeyboardShortcutsModel
 
 
 # conftest.py patches this during tests, so keep the original
@@ -29,7 +29,7 @@ real_detect_system_language = i18n.detect_system_language
 def strings_in_function_calls():
     """All strings in the code that are directly passed to ``_()``."""
     strings = set()
-    for path in Path(beeref.__file__).parent.rglob('*.py'):
+    for path in Path(myRef.__file__).parent.rglob('*.py'):
         tree = ast.parse(path.read_text(encoding='utf-8'))
         for node in ast.walk(tree):
             if (isinstance(node, ast.Call)
@@ -174,7 +174,7 @@ def test_set_language_falls_back_to_default_on_unknown_language():
 
 
 def test_set_language_system_uses_detected_language():
-    with patch('beeref.i18n.detect_system_language', return_value='es'):
+    with patch('myRef.i18n.detect_system_language', return_value='es'):
         i18n.set_language('system')
     assert i18n.current_language() == 'es'
 
@@ -209,7 +209,7 @@ def test_shortcuts_stay_portable_with_spanish_qt_translation(qapp):
 
 
 def test_spanish_controls_documentation_exists():
-    docs = Path(beeref.__file__).parent / 'documentation'
+    docs = Path(myRef.__file__).parent / 'documentation'
     original = (docs / 'controls.html').read_text(encoding='utf-8')
     translated = (docs / 'controls.es.html').read_text(encoding='utf-8')
     assert translated.count('<h4>') == original.count('<h4>')
@@ -217,7 +217,7 @@ def test_spanish_controls_documentation_exists():
 
 
 def test_help_dialog_shows_controls_in_current_language(view):
-    from beeref.widgets import HelpDialog
+    from myRef.widgets import HelpDialog
 
     def shown_text(dialog):
         return dialog.findChild(QtWidgets.QScrollArea).widget().text()
@@ -237,7 +237,7 @@ def test_language_setting_ignores_invalid_value(settings):
 
 
 def test_changing_setting_applies_language_and_emits_signal(settings, qtbot):
-    from beeref.config import settings_events
+    from myRef.config import settings_events
     with qtbot.waitSignal(settings_events.language_changed):
         settings.setValue('Interface/language', 'es')
     assert i18n.current_language() == 'es'
@@ -276,9 +276,9 @@ def test_language_change_retranslates_welcome_overlay(settings, view):
 
 def test_language_change_retranslates_window_title(settings, view):
     view.undo_stack.push(QtGui.QUndoCommand())
-    assert view.parent.windowTitle() == '[Untitled]* - BeeRef'
+    assert view.parent.windowTitle() == '[Untitled]* - myRef'
     settings.setValue('Interface/language', 'es')
-    assert view.parent.windowTitle() == '[Sin título]* - BeeRef'
+    assert view.parent.windowTitle() == '[Sin título]* - myRef'
 
 
 def test_keyboard_shortcuts_table_is_translated(view):

@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
-from beeref import commands, textformat
-from beeref.items import BeePixmapItem, BeeTextItem
-from beeref.widgets.textformat import (
+from myRef import commands, textformat
+from myRef.items import BeePixmapItem, BeeTextItem
+from myRef.widgets.textformat import (
     EditorTarget,
     NoteFormatToolbar,
     TextFormatToolbar,
@@ -226,7 +226,7 @@ def test_paste_format_without_copied_format_does_nothing(qapp):
     item = BeeTextItem('foo')
     old = item.html()
     textformat.paste_format(None)
-    with patch('beeref.textformat.copied_format', None):
+    with patch('myRef.textformat.copied_format', None):
         textformat.paste_format()(select_all(item))
     assert item.html() == old
 
@@ -477,7 +477,7 @@ def test_format_notes_inside_selected_group(view):
 
 
 def test_text_actions_enabled_with_note_selection(view):
-    from beeref.actions.actions import actions
+    from myRef.actions.actions import actions
     item = BeeTextItem('foo')
     view.scene.addItem(item)
     view.on_selection_changed()
@@ -621,7 +621,7 @@ def test_open_link_external(open_mock, view):
     open_mock.assert_called_once_with(QtCore.QUrl('https://example.com'))
 
 
-@patch('beeref.view.BeeGraphicsView.on_action_open_recent_file')
+@patch('myRef.view.BeeGraphicsView.on_action_open_recent_file')
 @patch('PyQt6.QtGui.QDesktopServices.openUrl')
 def test_open_link_bee_file(open_mock, recent_mock, view, tmpdir):
     filename = str(tmpdir / 'foo.bee')
@@ -704,7 +704,7 @@ def test_editor_toolbar_formats_text_edit(qapp):
 
 
 def test_comment_dialog_has_toolbar(view):
-    from beeref.widgets.hierarchy import CommentDialog
+    from myRef.widgets.hierarchy import CommentDialog
     dialog = CommentDialog(view, '<b>hi</b>')
     assert isinstance(dialog.toolbar, TextFormatToolbar)
     assert 'hi' in dialog.comment()

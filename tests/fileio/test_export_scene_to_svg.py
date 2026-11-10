@@ -5,9 +5,9 @@ import pytest
 
 from PyQt6 import QtGui, QtCore
 
-from beeref.items import BeeErrorItem, BeePixmapItem, BeeTextItem
-from beeref.fileio.errors import BeeFileIOError
-from beeref.fileio.export import SceneToSVGExporter
+from myRef.items import BeeErrorItem, BeePixmapItem, BeeTextItem
+from myRef.fileio.errors import BeeFileIOError
+from myRef.fileio.export import SceneToSVGExporter
 
 
 def test_scene_to_svg_exporter_skips_error_items(view):

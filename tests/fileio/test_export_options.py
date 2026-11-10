@@ -8,13 +8,13 @@ import pytest
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from beeref.fileio.export import (
+from myRef.fileio.export import (
     format_export_name,
     ImagesToDirectoryExporter,
     SceneToPixmapExporter,
     SceneToSVGExporter,
 )
-from beeref.items import BeePixmapItem, BeeTextItem
+from myRef.items import BeePixmapItem, BeeTextItem
 
 
 def make_image(view, x=0, y=0, w=10, h=10, filename=None,
@@ -136,8 +136,8 @@ def test_svg_exporter_only_given_items(view):
 
 # View actions
 
-@patch('beeref.widgets.SceneToPixmapExporterDialog.exec', return_value=1)
-@patch('beeref.widgets.SceneToPixmapExporterDialog.value',
+@patch('myRef.widgets.SceneToPixmapExporterDialog.exec', return_value=1)
+@patch('myRef.widgets.SceneToPixmapExporterDialog.value',
        return_value=QtCore.QSize(10, 10))
 @patch('PyQt6.QtWidgets.QFileDialog.getSaveFileName')
 def test_on_action_export_selection_as_scene(

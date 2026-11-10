@@ -2,16 +2,16 @@ from unittest.mock import patch, MagicMock
 
 from PyQt6 import QtCore
 
-from beeref import i18n
-from beeref.__main__ import BeeRefMainWindow, main
-from beeref.assets import BeeAssets
-from beeref.view import BeeGraphicsView
+from myRef import i18n
+from myRef.__main__ import myRefMainWindow, main
+from myRef.assets import BeeAssets
+from myRef.view import BeeGraphicsView
 
 
 @patch('PyQt6.QtWidgets.QWidget.show')
-def test_beeref_mainwindow_init(show_mock, qapp):
-    window = BeeRefMainWindow(qapp)
-    assert window.windowTitle() == 'BeeRef'
+def test_myRef_mainwindow_init(show_mock, qapp):
+    window = myRefMainWindow(qapp)
+    assert window.windowTitle() == 'myRef'
     assert BeeAssets().logo == BeeAssets().logo
     assert window.windowIcon()
     assert window.contentsMargins() == QtCore.QMargins(0, 0, 0, 0)
@@ -19,8 +19,8 @@ def test_beeref_mainwindow_init(show_mock, qapp):
     show_mock.assert_called()
 
 
-@patch('beeref.view.BeeGraphicsView.open_from_file')
-def test_beerefapplication_fileopenevent(open_mock, qapp, main_window):
+@patch('myRef.view.BeeGraphicsView.open_from_file')
+def test_myRefapplication_fileopenevent(open_mock, qapp, main_window):
     event = MagicMock()
     event.type.return_value = QtCore.QEvent.Type.FileOpen
     event.file.return_value = 'test.bee'
@@ -28,9 +28,9 @@ def test_beerefapplication_fileopenevent(open_mock, qapp, main_window):
     open_mock.assert_called_once_with('test.bee')
 
 
-@patch('beeref.__main__.BeeRefApplication')
-@patch('beeref.__main__.CommandlineArgs')
-@patch('beeref.config.BeeSettings.on_startup')
+@patch('myRef.__main__.myRefApplication')
+@patch('myRef.__main__.CommandlineArgs')
+@patch('myRef.config.BeeSettings.on_startup')
 def test_main(startup_mock, args_mock, app_mock, qapp):
     app_mock.return_value = qapp
     args_mock.return_value.filename = None
@@ -45,9 +45,9 @@ def test_main(startup_mock, args_mock, app_mock, qapp):
     startup_mock.assert_called()
 
 
-@patch('beeref.__main__.BeeRefApplication')
-@patch('beeref.__main__.CommandlineArgs')
-@patch('beeref.config.BeeSettings.on_startup')
+@patch('myRef.__main__.myRefApplication')
+@patch('myRef.__main__.CommandlineArgs')
+@patch('myRef.config.BeeSettings.on_startup')
 def test_main_applies_language_from_settings(
         startup_mock, args_mock, app_mock, qapp, settings):
     app_mock.return_value = qapp

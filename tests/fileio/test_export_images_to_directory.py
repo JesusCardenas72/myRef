@@ -5,9 +5,9 @@ import pytest
 
 from PyQt6 import QtGui
 
-from beeref.items import BeePixmapItem
-from beeref.fileio.errors import BeeFileIOError
-from beeref.fileio.export import ImagesToDirectoryExporter
+from myRef.items import BeePixmapItem
+from myRef.fileio.errors import BeeFileIOError
+from myRef.fileio.export import ImagesToDirectoryExporter
 
 
 def test_images_to_directory_exporter_export_writes_images(
