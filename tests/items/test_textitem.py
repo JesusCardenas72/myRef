@@ -362,3 +362,22 @@ def test_item_to_clipboard(qapp):
     item = BeeTextItem('foo bar')
     item.copy_to_clipboard(clipboard)
     assert clipboard.text() == 'foo bar'
+
+
+def test_edit_mode_switches_shortcut_context(view):
+    from beeref.actions.actions import (
+        actions, CONTEXT_GLOBAL, CONTEXT_TEXT_EDIT)
+    item = BeeTextItem('foo bar')
+    view.scene.addItem(item)
+    item.enter_edit_mode()
+    assert actions.active_context == CONTEXT_TEXT_EDIT
+    item.exit_edit_mode(commit=False)
+    assert actions.active_context == CONTEXT_GLOBAL
+
+
+def test_clear_scene_resets_shortcut_context(view):
+    from beeref.actions.actions import (
+        actions, CONTEXT_GLOBAL, CONTEXT_TEXT_EDIT)
+    actions.set_context(CONTEXT_TEXT_EDIT)
+    view.clear_scene()
+    assert actions.active_context == CONTEXT_GLOBAL

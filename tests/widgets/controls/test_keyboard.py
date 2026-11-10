@@ -420,3 +420,37 @@ def test_keyboard_shortcuts_proxy_setdata_remove_from_other():
             remove_from_other=a2)
         assert a1.get_shortcuts() == ['Ctrl+B']
         assert a2.get_shortcuts() == []
+
+
+@patch('PyQt6.QtWidgets.QMessageBox.question')
+def test_keyboard_shortcuts_editor_no_conflict_across_contexts(
+        question_mock, view):
+    from beeref.actions.actions import CONTEXT_TEXT_EDIT
+    a1 = Action(id='foo', text='Foo', shortcuts=['Ctrl+F'])
+    a2 = Action(id='bar', text='Bar', shortcuts=['Ctrl+B'],
+                context=CONTEXT_TEXT_EDIT)
+    with patch('beeref.widgets.controls.keyboard.actions',
+               ActionList([a1, a2])):
+        editor = KeyboardShortcutsEditor(
+            view,
+            index=MagicMock(
+                column=MagicMock(return_value=2),
+                row=MagicMock(return_value=0)))
+        editor.setKeySequence('Ctrl+B')
+        editor.on_editing_finished()
+        question_mock.assert_not_called()
+        assert editor.keySequence().toString() == 'Ctrl+B'
+        assert editor.remove_from_other is None
+
+
+def test_action_label_includes_context(view):
+    from beeref.actions.actions import CONTEXT_TEXT_EDIT
+    from beeref.widgets.controls.keyboard import action_label
+    action = Action(id='bold', text='&Bold', context=CONTEXT_TEXT_EDIT)
+    assert action_label(action) == 'Text Editing: Bold'
+
+
+def test_action_label_global_has_no_context_prefix(view):
+    from beeref.widgets.controls.keyboard import action_label
+    action = Action(id='bold', text='&Bold')
+    assert action_label(action) == 'Bold'

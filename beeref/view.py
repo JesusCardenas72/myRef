@@ -22,6 +22,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
 from beeref.actions import ActionsMixin, actions
+from beeref.actions.actions import CONTEXT_GLOBAL
 from beeref import commands
 from beeref.config import (
     BeeSettings,
@@ -245,6 +246,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.scene.clear()
         self.undo_stack.clear()
         self.apply_undo_limit()
+        actions.actions.set_context(CONTEXT_GLOBAL)
         self.filename = None
         self.setTransform(QtGui.QTransform())
 

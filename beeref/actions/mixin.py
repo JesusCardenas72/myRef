@@ -79,7 +79,7 @@ class ActionsMixin:
             self._translatable_texts.append(
                 (qaction.setText, action.text))
             qaction.setAutoRepeat(False)
-            shortcuts = action.get_shortcuts()
+            shortcuts = actions.effective_shortcuts(action)
             if shortcuts:
                 qaction.setShortcuts(shortcuts)
             if action.checkable:
@@ -132,7 +132,7 @@ class ActionsMixin:
             if i < len(files):
                 filename = files[i]
                 qaction = QtGui.QAction(os.path.basename(filename), self)
-                qaction.setShortcuts(action.get_shortcuts())
+                qaction.setShortcuts(actions.effective_shortcuts(action))
                 qaction.triggered.connect(
                     partial(self.on_action_open_recent_file, filename))
                 self.addAction(qaction)

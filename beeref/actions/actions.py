@@ -26,12 +26,30 @@ from beeref.utils import ActionList
 logger = logging.getLogger(__name__)
 
 
+# Shortcut contexts. Actions in the global context are always available.
+# Actions in another context only have working shortcuts while that
+# context is active (e.g. while editing a text item), and then take
+# precedence over global actions with the same shortcut.
+CONTEXT_GLOBAL = 'global'
+CONTEXT_TEXT_EDIT = 'text_edit'
+CONTEXT_DRAW = 'draw'
+
+CONTEXT_LABELS = {
+    CONTEXT_GLOBAL: None,
+    CONTEXT_TEXT_EDIT: 'Text Editing',
+    CONTEXT_DRAW: 'Drawing',
+}
+
+
 class Action:
     SETTINGS_GROUP = 'Actions'
 
     def __init__(self, id, text, callback=None, shortcuts=None,
                  checkable=False, checked=False, group=None, settings=None,
-                 enabled=True, menu_item=None, menu_id=None):
+                 enabled=True, menu_item=None, menu_id=None,
+                 context=CONTEXT_GLOBAL):
+        if context not in CONTEXT_LABELS:
+            raise ValueError(f'Unknown shortcut context: {context}')
         self.id = id
         self.text = text
         self.callback = callback
@@ -43,6 +61,7 @@ class Action:
         self.enabled = enabled
         self.menu_item = menu_item
         self.menu_id = menu_id
+        self.context = context
         self.qaction = None
         self.kb_settings = KeyboardSettings()
         settings_events.restore_keyboard_defaults.connect(
@@ -56,7 +75,7 @@ class Action:
 
     def on_restore_defaults(self):
         if self.qaction:
-            self.qaction.setShortcuts(self.get_shortcuts())
+            self.qaction.setShortcuts(actions.effective_shortcuts(self))
 
     @cached_property
     def menu_path(self):
@@ -93,7 +112,9 @@ class Action:
         self.kb_settings.set_list(
             self.SETTINGS_GROUP, self.id, value, self.shortcuts)
         if self.qaction:
-            self.qaction.setShortcuts(value)
+            self.qaction.setShortcuts(actions.effective_shortcuts(self))
+        # Other actions may be shadowed by this one in the active context:
+        actions.apply_shortcuts()
 
     def get_qkeysequence(self, index):
         """Current shortcuts as QKeySequence"""
@@ -112,8 +133,56 @@ class Action:
         except IndexError:
             return None
 
+    def conflicts_with(self, other):
+        """Whether this action can't share a shortcut with ``other``.
 
-actions = ActionList([
+        Actions of different contexts may share shortcuts: Either they
+        are never active at the same time, or the non-global action
+        takes precedence while its context is active.
+        """
+        return self != other and self.context == other.context
+
+
+class BeeActionList(ActionList):
+    """All actions, plus the currently active shortcut context."""
+
+    def __init__(self, actions):
+        super().__init__(actions)
+        self.active_context = CONTEXT_GLOBAL
+
+    def effective_shortcuts(self, action):
+        """The shortcuts that should currently trigger ``action``."""
+
+        if action.context == self.active_context:
+            return action.get_shortcuts()
+        if action.context != CONTEXT_GLOBAL:
+            return []
+        # Global action while another context is active: Shortcuts used
+        # by the active context take precedence.
+        taken = set()
+        for other in self.values():
+            if other.context == self.active_context:
+                taken.update(other.get_shortcuts())
+        return [s for s in action.get_shortcuts() if s not in taken]
+
+    def apply_shortcuts(self):
+        """Update the shortcuts of all QActions for the active context."""
+
+        for action in self.values():
+            if action.qaction:
+                action.qaction.setShortcuts(self.effective_shortcuts(action))
+
+    def set_context(self, context):
+        if context not in CONTEXT_LABELS:
+            raise ValueError(f'Unknown shortcut context: {context}')
+        if context == self.active_context:
+            return
+        logger.debug(f'Switching shortcut context to: {context}')
+        self.active_context = context
+        self.apply_shortcuts()
+
+
+actions = BeeActionList([
     Action(
         id='open',
         text='&Open',

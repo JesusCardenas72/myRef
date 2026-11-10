@@ -10,7 +10,7 @@ import pytest
 
 import beeref
 from beeref import constants, i18n
-from beeref.actions.actions import actions
+from beeref.actions.actions import actions, CONTEXT_LABELS
 from beeref.actions.menu_structure import menu_structure
 from beeref.config import KeyboardSettings
 from beeref.config.controls import MouseConfigBase
@@ -58,6 +58,7 @@ def strings_in_definitions():
     for action_list in (KeyboardSettings.MOUSE_ACTIONS,
                         KeyboardSettings.MOUSEWHEEL_ACTIONS):
         strings.update(action.text for action in action_list.values())
+    strings.update(label for label in CONTEXT_LABELS.values() if label)
     strings.update(MouseConfigBase.MODIFIER_MAP)
     strings.update(MouseConfigBase.BUTTON_MAP)
     strings.update(MOUSE_BINDING_BUTTONS)

@@ -26,6 +26,8 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 
 from beeref import commands
+from beeref.actions.actions import (
+    actions, CONTEXT_GLOBAL, CONTEXT_TEXT_EDIT)
 from beeref.config import BeeSettings
 from beeref.constants import COLORS
 from beeref.i18n import _
@@ -712,6 +714,7 @@ class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextEditorInteraction)
         self.scene().edit_item = self
+        actions.set_context(CONTEXT_TEXT_EDIT)
 
     def exit_edit_mode(self, commit=True):
         logger.debug(f'Exiting edit mode on {self}')
@@ -720,6 +723,7 @@ class BeeTextItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.setTextCursor(QtGui.QTextCursor(self.document()))
         self.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         self.scene().edit_item = None
+        actions.set_context(CONTEXT_GLOBAL)
         if commit:
             self.scene().undo_stack.push(
                 commands.ChangeText(self, self.toPlainText(), self.old_text))

@@ -220,6 +220,8 @@ TRANSLATIONS = {
      'Set to 0 for no limitation.'):
     ('El tamaño máximo de imagen que se puede cargar (en megabytes). '
      'Usa 0 para no poner límite.'),
+    'Text Editing': 'Edición de texto',
+    'Drawing': 'Dibujo',
     'Undo History Size:': 'Tamaño del historial de deshacer:',
     ('How many steps can be undone. Takes effect with the next '
      'new or opened scene. More steps use more memory.'):
