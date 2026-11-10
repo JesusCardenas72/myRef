@@ -43,6 +43,7 @@ from beeref.items import BeePixmapItem, BeeTextItem, items_in_order
 from beeref.main_controls import MainControlsMixin
 from beeref.scene import BeeGraphicsScene
 from beeref.utils import get_file_extension_from_format, qcolor_to_hex
+from beeref.window_modes import WindowModesMixin
 
 
 commandline_args = CommandlineArgs()
@@ -51,7 +52,8 @@ logger = logging.getLogger(__name__)
 
 class BeeGraphicsView(MainControlsMixin,
                       QtWidgets.QGraphicsView,
-                      ActionsMixin):
+                      ActionsMixin,
+                      WindowModesMixin):
 
     PAN_MODE = 1
     ZOOM_MODE = 2
@@ -94,6 +96,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.lock_button = widgets.view_buttons.LockButton(self)
 
         # Context menu and actions
+        self.init_window_mode_state()
         self.build_menu_and_actions()
         self.lock_button.clicked.connect(
             actions.actions['lock_items'].qaction.setChecked)
@@ -102,6 +105,11 @@ class BeeGraphicsView(MainControlsMixin,
         settings_events.language_changed.connect(self.on_language_changed)
         settings_events.view_settings_changed.connect(
             self.on_view_settings_changed)
+        self.init_window_modes()
+        settings_events.shortcuts_changed.connect(
+            self.register_global_hotkeys)
+        settings_events.restore_keyboard_defaults.connect(
+            self.register_global_hotkeys)
 
         # Load files given via command line
         if commandline_args.filenames:
@@ -190,6 +198,7 @@ class BeeGraphicsView(MainControlsMixin,
     def on_view_settings_changed(self):
         self.lock_button.apply_settings()
         self.update_titlebar_button()
+        self.on_window_settings_changed()
 
     def rebuild_titlebar_button(self):
         """Replaces an existing tablet mode button of the title bar. It
@@ -308,18 +317,31 @@ class BeeGraphicsView(MainControlsMixin,
         self.fit_rect(self.scene.itemsBoundingRect(selection_only=True))
 
     def on_action_fullscreen(self, checked):
+        if checked and self.window_locked:
+            self.set_checked_silently('fullscreen', False)
+            self.notify_window_locked()
+            return
+        if self.get_qaction('maximize_window').isChecked():
+            self.set_checked_silently('maximize_window', False)
+            self.normal_geometry = None
+            self.apply_window_size_constraints()
         if checked:
             self.parent.showFullScreen()
         else:
             self.parent.showNormal()
 
     def on_action_always_on_top(self, checked):
-        self.parent.setWindowFlag(
-            Qt.WindowType.WindowStaysOnTopHint, on=checked)
-        self.parent.destroy()
-        self.parent.create()
-        self.parent.show()
-        self.rebuild_titlebar_button()
+        flags = {Qt.WindowType.WindowStaysOnTopHint: checked}
+        if checked:
+            self.stop_app_on_top()
+            if self.get_qaction('always_on_bottom').isChecked():
+                flags[Qt.WindowType.WindowStaysOnBottomHint] = False
+                self.set_checked_silently('always_on_bottom', False)
+                self.remember_window_mode('always_on_bottom', False)
+        self.recreate_window(flags)
+        self.remember_window_mode('always_on_top', checked)
+        self.notify_window_mode(
+            _('Always on top') if checked else _('Normal window'))
 
     def on_action_show_scrollbars(self, checked):
         if checked:
@@ -340,12 +362,13 @@ class BeeGraphicsView(MainControlsMixin,
             self.parent.setMenuBar(None)
 
     def on_action_show_titlebar(self, checked):
-        self.parent.setWindowFlag(
-            Qt.WindowType.FramelessWindowHint, on=not checked)
-        self.parent.destroy()
-        self.parent.create()
-        self.parent.show()
-        self.rebuild_titlebar_button()
+        if checked and self.titlebar_on_hover:
+            self.titlebar_on_hover = False
+            self.set_checked_silently('titlebar_on_hover', False)
+            self.settings.setValue('Window/titlebar_on_hover', False)
+            self.frame_controller.titlebar.hide()
+        self.recreate_window(
+            {Qt.WindowType.FramelessWindowHint: not checked})
 
     def on_action_tablet_mode(self, checked):
         logger.debug(f'Setting tablet mode to {checked}')
@@ -1293,7 +1316,11 @@ class BeeGraphicsView(MainControlsMixin,
         super().mouseReleaseEvent(event)
 
     def resizeEvent(self, event):
+        old_size = event.oldSize()
+        old_center = self.mapToScene(
+            QtCore.QPoint(old_size.width() // 2, old_size.height() // 2))
         super().resizeEvent(event)
+        self.scale_scene_on_resize(old_size, event.size(), old_center)
         self.recalc_scene_rect()
         self.welcome_overlay.resize(self.size())
         self.lock_button.update_position()

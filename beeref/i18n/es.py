@@ -66,6 +66,102 @@ TRANSLATIONS = {
     'Ta&blet Mode': 'M&odo tablet',
     '&Lock Images': 'B&loquear imágenes',
     'Move &Window': 'Mover &ventana',
+    'Wi&ndow': 'Ve&ntana',
+    'Always On &Bottom': 'Siempre &debajo',
+    'Always On Top of A&pplication...': 'Siempre encima de una a&plicación...',
+    '&Click-Through': 'Transparente al &ratón',
+    '&Lock Window': '&Bloquear ventana',
+    '&Increase Opacity': '&Aumentar opacidad',
+    '&Decrease Opacity': 'Reducir &opacidad',
+    '&Full Opacity': 'Opacidad &completa',
+    'Fit Window to &Selection': 'Ajustar ventana a la &selección',
+    '&Maximize': '&Maximizar',
+    'Show Title Bar on &Hover': 'Barra de &título al pasar el ratón',
+    'Opacity: {percent} %': 'Opacidad: {percent} %',
+    'Always on bottom': 'Siempre debajo',
+    'Always on top': 'Siempre encima',
+    'Normal window': 'Ventana normal',
+    'This is only available on Windows': 'Solo está disponible en Windows',
+    '(None)': '(Ninguna)',
+    'Always On Top of Application': 'Siempre encima de una aplicación',
+    'Keep the window on top of this application:':
+    'Mantener la ventana encima de esta aplicación:',
+    'Always on top of: {app}': 'Siempre encima de: {app}',
+    'Click-through on. Use the tray icon to turn it off':
+    'Transparente al ratón. Usa el icono de la bandeja para desactivarlo',
+    ('Click-through on. Use the tray icon or a global '
+     'shortcut to turn it off'):
+    ('Transparente al ratón. Usa el icono de la bandeja o un atajo '
+     'global para desactivarlo'),
+    'Click-through off': 'Ya no es transparente al ratón',
+    'Window locked': 'Ventana bloqueada',
+    'Window unlocked': 'Ventana desbloqueada',
+    'The window is locked': 'La ventana está bloqueada',
+    'Could not use these shortcuts system wide: {keys}':
+    'No se pudieron usar estos atajos en todo el sistema: {keys}',
+    'Show / Hide Window': 'Mostrar / ocultar ventana',
+    '&Window': '&Ventana',
+    'Opacity:': 'Opacidad:',
+    ('How opaque the whole window is. Can also be changed in '
+     'View > Window.'):
+    ('Lo opaca que es toda la ventana. También se puede cambiar en '
+     'Ver > Ventana.'),
+    'On Startup:': 'Al arrancar:',
+    'The window mode when BeeRef starts.':
+    'El modo de la ventana al arrancar BeeRef.',
+    'Last used': 'El último usado',
+    ('Always on top, always on bottom and click-through as in the '
+     'last session'):
+    ('Siempre encima, siempre debajo y transparente al ratón como en la '
+     'última sesión'),
+    'Click-through': 'Transparente al ratón',
+    'Always on top and transparent to the mouse':
+    'Siempre encima y transparente al ratón',
+    'Notifications:': 'Avisos:',
+    ('Show a short notice when the window mode or opacity '
+     'changes.'):
+    ('Mostrar un aviso breve cuando cambia el modo de la ventana o la '
+     'opacidad.'),
+    'Show notices': 'Mostrar avisos',
+    'Tray Icon:': 'Icono en la bandeja:',
+    ('The icon in the system tray is always shown during '
+     'click-through, since the window gets no mouse clicks then.'):
+    ('El icono en la bandeja del sistema siempre se muestra en modo '
+     'transparente al ratón, porque entonces la ventana no recibe clics.'),
+    'Always show': 'Mostrar siempre',
+    'Global Shortcuts:': 'Atajos globales:',
+    ('The shortcuts of click-through, always on top/bottom, '
+     'opacity and lock window also work while other applications '
+     'are active. Other applications can no longer use them '
+     '(Windows only).'):
+    ('Los atajos de transparente al ratón, siempre encima/debajo, '
+     'opacidad y bloquear ventana también funcionan mientras otras '
+     'aplicaciones están activas. Las otras aplicaciones ya no pueden '
+     'usarlos (solo Windows).'),
+    'Use system wide': 'Usar en todo el sistema',
+    'Resizing the Window:': 'Al redimensionar la ventana:',
+    ('Scale the scene along with the window, so that the '
+     'visible part stays the same.'):
+    ('Escalar la escena junto con la ventana, para que se siga viendo '
+     'la misma parte.'),
+    'Scale the scene': 'Escalar la escena',
+    'Maximize:': 'Maximizar:',
+    ('View > Window > Maximize covers the whole screen including '
+     'the taskbar. Works best without title bar.'):
+    ('Ver > Ventana > Maximizar cubre toda la pantalla, incluida la '
+     'barra de tareas. Funciona mejor sin barra de título.'),
+    'Cover the taskbar': 'Cubrir la barra de tareas',
+    'Lock When Maximized:': 'Bloquear al maximizar:',
+    ('Keep the window size from being changed while maximized '
+     'with View > Window > Maximize.'):
+    ('Impedir que cambie el tamaño de la ventana mientras está '
+     'maximizada con Ver > Ventana > Maximizar.'),
+    'Lock size': 'Bloquear el tamaño',
+    'Resize Border:': 'Borde para redimensionar:',
+    ('Width of the border for resizing the window when the '
+     'title bar is hidden.'):
+    ('Ancho del borde para redimensionar la ventana cuando la barra de '
+     'título está oculta.'),
 
     # Actions: Insert
     '&Images...': '&Imágenes...',
@@ -344,7 +440,6 @@ TRANSLATIONS = {
     'Width:': 'Anchura:',
     'Height:': 'Altura:',
     'Change Opacity:': 'Cambiar opacidad:',
-    'Opacity:': 'Opacidad:',
     'Opacity: {value}%': 'Opacidad: {value}%',
     'File exists': 'El archivo ya existe',
     'File already exists:\n{filename}': 'El archivo ya existe:\n{filename}',

@@ -4,6 +4,24 @@
 Added
 -----
 
+* New View -> Window menu with window modes:
+
+  * Click-through (Ctrl + Alt + T): The window stays visible, but
+    mouse clicks go to the windows behind it. Turn it off via the tray
+    icon or a global shortcut.
+  * Window opacity (Ctrl + Alt + Up/Down).
+  * Always on bottom, and always on top of a chosen application
+    (Windows only).
+  * Lock window: The window can't be moved or resized.
+  * Fit window to selection: Resizes the window around the selected
+    items (or all items) without moving them on screen.
+  * Maximize, optionally covering the taskbar and locking the size.
+  * Show the title bar only while hovering over the top of the window.
+
+* Windows without title bar can be resized by dragging their border.
+* New settings tab "Window": opacity, window mode on startup, notices
+  on mode changes, tray icon, global shortcuts (Windows only), scaling
+  the scene when resizing the window, resize border width.
 * Align items left/right/top/bottom (Ctrl + Arrow Keys), distribute
   them evenly and stack them (Arrange menu).
 * Normalize by longest side and by scale; normalize either to the

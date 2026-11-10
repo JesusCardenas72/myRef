@@ -399,6 +399,90 @@ class LockIconTransparencyWidget(IntegerGroup):
     SUFFIX = ' %'
 
 
+class WindowOpacityWidget(IntegerGroup):
+    TITLE = 'Opacity:'
+    HELPTEXT = ('How opaque the whole window is. Can also be changed in '
+                'View > Window.')
+    KEY = 'Window/opacity'
+    MIN = 10
+    MAX = 100
+    SUFFIX = ' %'
+
+
+class WindowStartupModeWidget(RadioGroup):
+    TITLE = 'On Startup:'
+    HELPTEXT = 'The window mode when BeeRef starts.'
+    KEY = 'Window/startup_mode'
+    OPTIONS = (
+        ('normal', 'Normal window', ''),
+        ('last', 'Last used',
+         'Always on top, always on bottom and click-through as in the '
+         'last session'),
+        ('always_on_top', 'Always on top', ''),
+        ('click_through', 'Click-through',
+         'Always on top and transparent to the mouse'))
+
+
+class WindowNotifyWidget(SingleCheckboxGroup):
+    TITLE = 'Notifications:'
+    HELPTEXT = ('Show a short notice when the window mode or opacity '
+                'changes.')
+    LABEL = 'Show notices'
+    KEY = 'Window/notify_mode_change'
+
+
+class WindowTrayIconWidget(SingleCheckboxGroup):
+    TITLE = 'Tray Icon:'
+    HELPTEXT = ('The icon in the system tray is always shown during '
+                'click-through, since the window gets no mouse clicks then.')
+    LABEL = 'Always show'
+    KEY = 'Window/tray_icon'
+
+
+class WindowGlobalHotkeysWidget(SingleCheckboxGroup):
+    TITLE = 'Global Shortcuts:'
+    HELPTEXT = ('The shortcuts of click-through, always on top/bottom, '
+                'opacity and lock window also work while other applications '
+                'are active. Other applications can no longer use them '
+                '(Windows only).')
+    LABEL = 'Use system wide'
+    KEY = 'Window/global_hotkeys'
+
+
+class WindowScaleOnResizeWidget(SingleCheckboxGroup):
+    TITLE = 'Resizing the Window:'
+    HELPTEXT = ('Scale the scene along with the window, so that the '
+                'visible part stays the same.')
+    LABEL = 'Scale the scene'
+    KEY = 'Window/scale_on_resize'
+
+
+class WindowMaximizeOverTaskbarWidget(SingleCheckboxGroup):
+    TITLE = 'Maximize:'
+    HELPTEXT = ('View > Window > Maximize covers the whole screen including '
+                'the taskbar. Works best without title bar.')
+    LABEL = 'Cover the taskbar'
+    KEY = 'Window/maximize_over_taskbar'
+
+
+class WindowLockWhenMaximizedWidget(SingleCheckboxGroup):
+    TITLE = 'Lock When Maximized:'
+    HELPTEXT = ('Keep the window size from being changed while maximized '
+                'with View > Window > Maximize.')
+    LABEL = 'Lock size'
+    KEY = 'Window/lock_when_maximized'
+
+
+class WindowResizeBorderWidget(IntegerGroup):
+    TITLE = 'Resize Border:'
+    HELPTEXT = ('Width of the border for resizing the window when the '
+                'title bar is hidden.')
+    KEY = 'Window/resize_border'
+    MIN = 2
+    MAX = 40
+    SUFFIX = ' px'
+
+
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent):
         super().__init__(parent)
@@ -451,6 +535,21 @@ class SettingsDialog(QtWidgets.QDialog):
         tabs.addTab(lock_icon, '')
         tabs.addTab(export, '')
 
+        # Window
+        window = QtWidgets.QWidget()
+        window_layout = QtWidgets.QGridLayout()
+        window.setLayout(window_layout)
+        window_layout.addWidget(WindowStartupModeWidget(), 0, 0, 2, 1)
+        window_layout.addWidget(WindowOpacityWidget(), 0, 1)
+        window_layout.addWidget(WindowNotifyWidget(), 0, 2)
+        window_layout.addWidget(WindowTrayIconWidget(), 1, 1)
+        window_layout.addWidget(WindowGlobalHotkeysWidget(), 1, 2)
+        window_layout.addWidget(WindowScaleOnResizeWidget(), 2, 0)
+        window_layout.addWidget(WindowMaximizeOverTaskbarWidget(), 2, 1)
+        window_layout.addWidget(WindowLockWhenMaximizedWidget(), 2, 2)
+        window_layout.addWidget(WindowResizeBorderWidget(), 3, 0)
+        tabs.addTab(window, '')
+
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
         layout.addWidget(tabs)
@@ -477,6 +576,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tabs.setTabText(2, _('&Tablet Mode'))
         self.tabs.setTabText(3, _('&Lock Icon'))
         self.tabs.setTabText(4, _('E&xport'))
+        self.tabs.setTabText(5, _('&Window'))
         self.reset_btn.setText(_('&Restore Defaults'))
 
     def on_restore_defaults(self, *args, **kwargs):

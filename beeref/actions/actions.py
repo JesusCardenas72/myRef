@@ -115,6 +115,7 @@ class Action:
             self.qaction.setShortcuts(actions.effective_shortcuts(self))
         # Other actions may be shadowed by this one in the active context:
         actions.apply_shortcuts()
+        settings_events.shortcuts_changed.emit()
 
     def get_qkeysequence(self, index):
         """Current shortcuts as QKeySequence"""
@@ -648,6 +649,65 @@ actions = BeeActionList([
         checkable=True,
         settings='View/lock_items',
         callback='on_action_lock_items',
+    ),
+    Action(
+        id='always_on_bottom',
+        text='Always On &Bottom',
+        checkable=True,
+        callback='on_action_always_on_bottom',
+    ),
+    Action(
+        id='always_on_top_of_app',
+        text='Always On Top of A&pplication...',
+        callback='on_action_always_on_top_of_app',
+    ),
+    Action(
+        id='click_through',
+        text='&Click-Through',
+        shortcuts=['Ctrl+Alt+T'],
+        checkable=True,
+        callback='on_action_click_through',
+    ),
+    Action(
+        id='lock_window',
+        text='&Lock Window',
+        checkable=True,
+        callback='on_action_lock_window',
+    ),
+    Action(
+        id='opacity_increase',
+        text='&Increase Opacity',
+        shortcuts=['Ctrl+Alt+Up'],
+        callback='on_action_opacity_increase',
+    ),
+    Action(
+        id='opacity_decrease',
+        text='&Decrease Opacity',
+        shortcuts=['Ctrl+Alt+Down'],
+        callback='on_action_opacity_decrease',
+    ),
+    Action(
+        id='opacity_reset',
+        text='&Full Opacity',
+        callback='on_action_opacity_reset',
+    ),
+    Action(
+        id='fit_window_to_selection',
+        text='Fit Window to &Selection',
+        callback='on_action_fit_window_to_selection',
+        group='active_when_items_in_scene',
+    ),
+    Action(
+        id='maximize_window',
+        text='&Maximize',
+        checkable=True,
+        callback='on_action_maximize_window',
+    ),
+    Action(
+        id='titlebar_on_hover',
+        text='Show Title Bar on &Hover',
+        checkable=True,
+        callback='on_action_titlebar_on_hover',
     ),
     Action(
         id='move_window',
