@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with BeeRef.  If not, see <https://www.gnu.org/licenses/>.
 
+import time
+
 from PyQt6 import QtCore, QtGui
 
 
@@ -38,6 +40,8 @@ class InsertItems(QtGui.QUndoCommand):
                 self.old_positions.append(item.pos())
                 item.setPos(item.pos() + self.position - rect.center())
         for item in self.items:
+            if getattr(item, 'added_at', None) is None:
+                item.added_at = time.time()
             self.scene.addItem(item)
             item.setSelected(True)
             item.bring_to_front()

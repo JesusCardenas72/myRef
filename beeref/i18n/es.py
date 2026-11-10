@@ -222,6 +222,31 @@ TRANSLATIONS = {
      'Usa 0 para no poner límite.'),
     'Text Editing': 'Edición de texto',
     'Drawing': 'Dibujo',
+    'D&uplicate': 'D&uplicar',
+    'Zoom &In': 'A&cercar',
+    'Zoom &Out': 'Ale&jar',
+    'Act&ual Size': 'Tamaño &real',
+    '&Center on Origin': 'Centrar en el ori&gen',
+    '&Longest Side': 'Lado más &largo',
+    'S&cale': '&Escala',
+    'Square (by &time added)': 'Cuadrado (por orden de &inserción)',
+    'Square (ran&dom)': 'Cuadrado (&aleatorio)',
+    'Align &Left': 'Alinear a la i&zquierda',
+    'Align R&ight': 'Alinear a la &derecha',
+    'Align To&p': 'Alinear arri&ba',
+    'Align &Bottom': 'Alinear aba&jo',
+    'Distribute Hori&zontally': 'Distribuir horizontal&mente',
+    'Distribute V&ertically': 'Distribuir verticalm&ente',
+    'St&ack': 'Api&lar',
+    'Normalize To:': 'Normalizar respecto a:',
+    'Which size the normalize actions use as reference':
+    'Qué tamaño usan como referencia las acciones de normalizar',
+    'Average': 'Promedio',
+    'The average of all affected items':
+    'El promedio de todos los elementos afectados',
+    'First Item': 'Primer elemento',
+    'The first item in hierarchy order':
+    'El primer elemento en el orden de la jerarquía',
     'Undo History Size:': 'Tamaño del historial de deshacer:',
     ('How many steps can be undone. Takes effect with the next '
      'new or opened scene. More steps use more memory.'):

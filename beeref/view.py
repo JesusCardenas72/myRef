@@ -421,6 +421,65 @@ class BeeGraphicsView(MainControlsMixin,
     def on_action_arrange_square(self):
         self.scene.arrange_square()
 
+    def on_action_normalize_longest_side(self):
+        self.scene.normalize_longest_side()
+
+    def on_action_normalize_scale(self):
+        self.scene.normalize_scale()
+
+    def on_action_arrange_square_addition(self):
+        self.scene.arrange_square(order='addition')
+
+    def on_action_arrange_square_random(self):
+        self.scene.arrange_square(order='random')
+
+    def on_action_align_left(self):
+        self.scene.align('left')
+
+    def on_action_align_right(self):
+        self.scene.align('right')
+
+    def on_action_align_top(self):
+        self.scene.align('top')
+
+    def on_action_align_bottom(self):
+        self.scene.align('bottom')
+
+    def on_action_distribute_horizontal(self):
+        self.scene.distribute()
+
+    def on_action_distribute_vertical(self):
+        self.scene.distribute(vertical=True)
+
+    def on_action_stack(self):
+        self.scene.stack()
+
+    def on_action_duplicate(self):
+        # Offset copies by a fixed distance on screen, regardless of zoom
+        offset = QtCore.QPointF(20, 20) / self.get_scale()
+        self.scene.duplicate_selection(offset)
+
+    ZOOM_STEP = 250  # Corresponds to a zoom factor of 1.25
+
+    def on_action_zoom_in(self):
+        self.zoom(self.ZOOM_STEP, self.viewport().rect().center())
+
+    def on_action_zoom_out(self):
+        self.zoom(-self.ZOOM_STEP, self.viewport().rect().center())
+
+    def on_action_zoom_actual(self):
+        """Zoom to 100%, keeping the view's center."""
+        center = self.mapToScene(self.viewport().rect().center())
+        self.setTransform(QtGui.QTransform())
+        self.scene.on_view_scale_change()
+        self.recalc_scene_rect()
+        self.centerOn(center)
+        self.reset_previous_transform()
+
+    def on_action_center_origin(self):
+        self.centerOn(QtCore.QPointF(0, 0))
+        self.reset_previous_transform()
+
     def on_action_change_opacity(self):
         images = list(filter(
             lambda item: item.is_image,

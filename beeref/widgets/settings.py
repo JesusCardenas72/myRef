@@ -245,6 +245,15 @@ class ArrangeDefaultWidget(RadioGroup):
         ('square', 'Square (by filename)', 'Arrange Square (by filename)'))
 
 
+class NormalizeSourceWidget(RadioGroup):
+    TITLE = 'Normalize To:'
+    HELPTEXT = 'Which size the normalize actions use as reference'
+    KEY = 'Items/normalize_source'
+    OPTIONS = (
+        ('average', 'Average', 'The average of all affected items'),
+        ('first', 'First Item', 'The first item in hierarchy order'))
+
+
 class ImageStorageFormatWidget(RadioGroup):
     TITLE = 'Image Storage Format:'
     HELPTEXT = ('How images are stored inside bee files.'
@@ -374,6 +383,7 @@ class SettingsDialog(QtWidgets.QDialog):
         items_layout.addWidget(AllocationLimitWidget(), 0, 1)
         items_layout.addWidget(ArrangeGapWidget(), 1, 0)
         items_layout.addWidget(ArrangeDefaultWidget(), 1, 1)
+        items_layout.addWidget(NormalizeSourceWidget(), 2, 0)
         tabs.addTab(items, '')
 
         # Tablet Mode

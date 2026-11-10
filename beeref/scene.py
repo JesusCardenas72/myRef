@@ -16,6 +16,7 @@
 from functools import partial
 import logging
 import math
+import random
 from queue import Queue
 
 from PyQt6 import QtCore, QtWidgets, QtGui
@@ -26,7 +27,13 @@ import rpack
 from beeref import commands
 from beeref.config import BeeSettings
 from beeref.i18n import _
-from beeref.items import item_registry, BeeErrorItem, sort_by_filename
+from beeref.items import (
+    item_registry,
+    items_in_order,
+    sort_by_addition,
+    sort_by_filename,
+    BeeErrorItem,
+)
 from beeref.selection import MultiSelectItem, RubberbandItem
 
 
@@ -142,6 +149,50 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         for item in items:
             item.setZValue(item.zValue() + delta)
 
+    def user_items(self):
+        """All top-level items added by the user."""
+
+        return [item for item in self.items()
+                if hasattr(item, 'save_id') and item.parentItem() is None]
+
+    def items_for_action(self):
+        """The items an organizing action should affect.
+
+        These are the selected items, or all items if nothing is
+        selected.
+        """
+
+        return self.selectedItems(user_only=True) or self.user_items()
+
+    def items_center(self, items):
+        rect = self.itemsBoundingRect(items=items)
+        return (rect.topLeft() + rect.bottomRight()) / 2
+
+    def _item_rects(self, items):
+        return [self.itemsBoundingRect(items=[item]) for item in items]
+
+    def _normalize(self, values, func):
+        """Push a NormalizeItems command so that the given values become
+        the same for all items.
+
+        :param values: List of (item, value) tuples.
+        :param func: Turns (target value, current value) into a scale
+            factor.
+        """
+
+        if len(values) < 2:
+            return
+        source = self.settings.valueOrDefault('Items/normalize_source')
+        if source == 'first':
+            first = items_in_order([v[0] for v in values])[0]
+            target = dict(values)[first]
+        else:
+            target = sum(v[1] for v in values) / len(values)
+        logger.debug(f'Normalizing to {target} ({source})')
+        items = [v[0] for v in values]
+        factors = [func(target, v[1]) for v in values]
+        self.undo_stack.push(commands.NormalizeItems(items, factors))
+
     def normalize_width_or_height(self, mode):
         """Scale the selected images to have the same width or height, as
         specified by ``mode``.
@@ -150,22 +201,10 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         """
 
         self.cancel_active_modes()
-        values = []
-        items = self.selectedItems(user_only=True)
-        for item in items:
-            rect = self.itemsBoundingRect(items=[item])
-            values.append(getattr(rect, mode)())
-        if len(values) < 2:
-            return
-        avg = sum(values) / len(values)
-        logger.debug(f'Calculated average {mode} {avg}')
-
-        scale_factors = []
-        for item in items:
-            rect = self.itemsBoundingRect(items=[item])
-            scale_factors.append(avg / getattr(rect, mode)())
-        self.undo_stack.push(
-            commands.NormalizeItems(items, scale_factors))
+        items = self.items_for_action()
+        values = [(item, getattr(rect, mode)())
+                  for item, rect in zip(items, self._item_rects(items))]
+        self._normalize(values, lambda target, value: target / value)
 
     def normalize_height(self):
         """Scale selected images to the same height."""
@@ -182,24 +221,108 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         """
 
         self.cancel_active_modes()
-        sizes = []
-        items = self.selectedItems(user_only=True)
-        for item in items:
-            rect = self.itemsBoundingRect(items=[item])
-            sizes.append(rect.width() * rect.height())
+        items = self.items_for_action()
+        values = [(item, rect.width() * rect.height())
+                  for item, rect in zip(items, self._item_rects(items))]
+        self._normalize(
+            values, lambda target, value: math.sqrt(target / value))
 
-        if len(sizes) < 2:
+    def normalize_longest_side(self):
+        """Scale selected items so that their longest sides are equal."""
+
+        self.cancel_active_modes()
+        items = self.items_for_action()
+        values = [(item, max(rect.width(), rect.height()))
+                  for item, rect in zip(items, self._item_rects(items))]
+        self._normalize(values, lambda target, value: target / value)
+
+    def normalize_scale(self):
+        """Give selected items the same scale factor.
+
+        Useful for giving text notes the same text size.
+        """
+
+        self.cancel_active_modes()
+        values = [(item, item.scale()) for item in self.items_for_action()]
+        self._normalize(values, lambda target, value: target / value)
+
+    def align(self, edge):
+        """Align items to the outermost edge of all affected items.
+
+        :param edge: "left", "right", "top" or "bottom"
+        """
+
+        self.cancel_active_modes()
+        items = self.items_for_action()
+        if len(items) < 2:
             return
+        rects = self._item_rects(items)
+        if edge == 'left':
+            target = min(r.left() for r in rects)
+            positions = [QtCore.QPointF(target, r.top()) for r in rects]
+        elif edge == 'right':
+            target = max(r.right() for r in rects)
+            positions = [QtCore.QPointF(target - r.width(), r.top())
+                         for r in rects]
+        elif edge == 'top':
+            target = min(r.top() for r in rects)
+            positions = [QtCore.QPointF(r.left(), target) for r in rects]
+        elif edge == 'bottom':
+            target = max(r.bottom() for r in rects)
+            positions = [QtCore.QPointF(r.left(), target - r.height())
+                         for r in rects]
+        else:
+            raise ValueError(f'Unknown edge: {edge}')
+        self.undo_stack.push(commands.ArrangeItems(self, items, positions))
 
-        avg = sum(sizes) / len(sizes)
-        logger.debug(f'Calculated average size {avg}')
+    def distribute(self, vertical=False):
+        """Distribute items with equal spacing between them.
 
-        scale_factors = []
-        for item in items:
-            rect = self.itemsBoundingRect(items=[item])
-            scale_factors.append(math.sqrt(avg / rect.width() / rect.height()))
-        self.undo_stack.push(
-            commands.NormalizeItems(items, scale_factors))
+        The outermost items keep their positions.
+        """
+
+        self.cancel_active_modes()
+        items = self.items_for_action()
+        if len(items) < 3:
+            return
+        pairs = list(zip(items, self._item_rects(items)))
+        if vertical:
+            pairs.sort(key=lambda p: p[1].top())
+            start = pairs[0][1].top()
+            end = max(r.bottom() for _, r in pairs)
+            total = sum(r.height() for _, r in pairs)
+        else:
+            pairs.sort(key=lambda p: p[1].left())
+            start = pairs[0][1].left()
+            end = max(r.right() for _, r in pairs)
+            total = sum(r.width() for _, r in pairs)
+        spacing = (end - start - total) / (len(pairs) - 1)
+
+        positions = []
+        current = start
+        for item, rect in pairs:
+            if vertical:
+                positions.append(QtCore.QPointF(rect.left(), current))
+                current += rect.height() + spacing
+            else:
+                positions.append(QtCore.QPointF(current, rect.top()))
+                current += rect.width() + spacing
+        self.undo_stack.push(commands.ArrangeItems(
+            self, [p[0] for p in pairs], positions))
+
+    def stack(self):
+        """Pile up items on top of each other, centered on their common
+        center. The stacking order (z values) is kept.
+        """
+
+        self.cancel_active_modes()
+        items = self.items_for_action()
+        if len(items) < 2:
+            return
+        center = self.items_center(items)
+        positions = [center - QtCore.QPointF(r.width() / 2, r.height() / 2)
+                     for r in self._item_rects(items)]
+        self.undo_stack.push(commands.ArrangeItems(self, items, positions))
 
     def arrange_default(self):
         default = self.settings.valueOrDefault('Items/arrange_default')
@@ -217,12 +340,12 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
         self.cancel_active_modes()
 
-        items = sort_by_filename(self.selectedItems(user_only=True))
+        items = sort_by_filename(self.items_for_action())
         if len(items) < 2:
             return
 
         gap = self.settings.valueOrDefault('Items/arrange_gap')
-        center = self.get_selection_center()
+        center = self.items_center(items)
         positions = []
         rects = []
         for item in items:
@@ -258,7 +381,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
     def arrange_optimal(self):
         self.cancel_active_modes()
 
-        items = self.selectedItems(user_only=True)
+        items = self.items_for_action()
         if len(items) < 2:
             return
 
@@ -285,19 +408,32 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
         # We want the items to center around the selection's center,
         # not (0, 0)
-        center = self.get_selection_center()
+        center = self.items_center(items)
         bounds = rpack.bbox_size(sizes, positions)
         diff = center - QtCore.QPointF(bounds[0]/2, bounds[1]/2)
         positions = [QtCore.QPointF(*pos) + diff for pos in positions]
 
         self.undo_stack.push(commands.ArrangeItems(self, items, positions))
 
-    def arrange_square(self):
+    @staticmethod
+    def _shuffled(items):
+        return random.sample(items, len(items))
+
+    def arrange_square(self, order='filename'):
+        """Arrange items in a square grid.
+
+        :param order: "filename", "addition" (time added) or "random".
+        """
+        orders = {
+            'filename': sort_by_filename,
+            'addition': sort_by_addition,
+            'random': self._shuffled,
+        }
         self.cancel_active_modes()
         max_width = 0
         max_height = 0
         gap = self.settings.valueOrDefault('Items/arrange_gap')
-        items = sort_by_filename(self.selectedItems(user_only=True))
+        items = orders[order](self.items_for_action())
 
         if len(items) < 2:
             return
@@ -310,7 +446,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         # We want the items to center around the selection's center,
         # not (0, 0)
         num_rows = math.ceil(math.sqrt(len(items)))
-        center = self.get_selection_center()
+        center = self.items_center(items)
         diff = center - num_rows/2 * QtCore.QPointF(max_width, max_height)
 
         iter_items = iter(items)
@@ -328,6 +464,18 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                     break
 
         self.undo_stack.push(commands.ArrangeItems(self, items, positions))
+
+    def duplicate_selection(self, offset):
+        """Insert copies of the selected items, moved by ``offset``."""
+
+        self.cancel_active_modes()
+        items = self.selectedItems(user_only=True)
+        if not items:
+            return
+        center = self.items_center(items)
+        copies = [item.create_copy() for item in items]
+        self.undo_stack.push(
+            commands.InsertItems(self, copies, center + offset))
 
     def flip_items(self, vertical=False):
         """Flip selected items."""

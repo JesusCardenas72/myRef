@@ -70,6 +70,23 @@ def sort_by_filename(items):
     return items_by_filename + items_by_save_id + items_remaining
 
 
+def sort_by_addition(items):
+    """Order items by the time they were added to the scene.
+
+    Items without that information (e.g. from older bee files) come
+    first, ordered by save_id.
+    """
+
+    def key(item):
+        added_at = getattr(item, 'added_at', None)
+        save_id = getattr(item, 'save_id', None)
+        return (added_at is not None,
+                added_at or 0,
+                save_id if save_id is not None else float('inf'))
+
+    return sorted(items, key=key)
+
+
 def items_in_order(items):
     """Order items in the canonical (hierarchy) order.
 
@@ -134,10 +151,10 @@ class BeeItemMixin(SelectableMixin):
         self.setRotation(kwargs.get('rotation', self.rotation()))
         if kwargs.get('flip', 1) != self.flip():
             self.do_flip()
-        self.update_hierarchy_from_data(**kwargs)
+        self.update_common_from_data(**kwargs)
 
-    def update_hierarchy_from_data(self, **kwargs):
-        """Remember hierarchy info from a bee file.
+    def update_common_from_data(self, **kwargs):
+        """Set data common to all item types from a bee file.
 
         The parent can only be assigned once it has been added to the
         scene, see ``BeeGraphicsScene.resolve_parents``.
@@ -145,6 +162,15 @@ class BeeItemMixin(SelectableMixin):
         self.sort_order = kwargs.get(
             'sort_order', getattr(self, 'sort_order', None))
         self.pending_parent_id = kwargs.get('parent_id')
+        data = kwargs.get('data') or {}
+        self.added_at = data.get('added_at', getattr(self, 'added_at', None))
+
+    def get_common_save_data(self):
+        """Data common to all item types to be stored in the bee file."""
+        data = {}
+        if getattr(self, 'added_at', None) is not None:
+            data['added_at'] = self.added_at
+        return data
 
 
 @register_item
@@ -827,7 +853,7 @@ class BeeErrorItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.setZValue(kwargs.get('z', self.zValue()))
         self.setScale(kwargs.get('scale', self.scale()))
         self.setRotation(kwargs.get('rotation', self.rotation()))
-        self.update_hierarchy_from_data(**kwargs)
+        self.update_common_from_data(**kwargs)
 
     def create_copy(self):
         item = BeeErrorItem(self.toPlainText())

@@ -71,6 +71,15 @@ def parent_save_id(item):
     return getattr(parent, 'save_id', None) if parent else None
 
 
+def item_save_data(item):
+    """The JSON data column for the given item."""
+
+    data = item.get_extra_save_data()
+    if hasattr(item, 'get_common_save_data'):
+        data.update(item.get_common_save_data())
+    return data
+
+
 def handle_sqlite_errors(func):
     def wrapper(self, *args, **kwargs):
         try:
@@ -337,7 +346,7 @@ class SQLiteIO:
             'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (item.TYPE, item.pos().x(), item.pos().y(), item.zValue(),
              item.scale(), item.rotation(), item.flip(),
-             json.dumps(item.get_extra_save_data()),
+             json.dumps(item_save_data(item)),
              parent_save_id(item), getattr(item, 'sort_order', None)))
         item.save_id = self.cursor.lastrowid
 
@@ -362,7 +371,7 @@ class SQLiteIO:
             'WHERE id=?',
             (item.pos().x(), item.pos().y(), item.zValue(), item.scale(),
              item.rotation(), item.flip(),
-             json.dumps(item.get_extra_save_data()),
+             json.dumps(item_save_data(item)),
              parent_save_id(item), getattr(item, 'sort_order', None),
              item.save_id))
         self.connection.commit()

@@ -185,6 +185,10 @@ class BeeSettings(QtCore.QSettings):
             'cast': int,
             'validate': lambda x: 0 <= x <= 200,
         },
+        'Items/normalize_source': {
+            'default': 'average',
+            'validate': lambda x: x in ('average', 'first'),
+        },
         'Items/arrange_default': {
             'default': 'optimal',
             'validate': lambda x: x in (
