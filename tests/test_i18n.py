@@ -73,6 +73,7 @@ def strings_in_definitions():
     for group in groups:
         strings.update((group.TITLE, group.HELPTEXT))
         strings.add(getattr(group, 'LABEL', None))
+        strings.add(getattr(group, 'PLACEHOLDER', None))
         for (value, label, helptext) in getattr(group, 'OPTIONS', ()):
             strings.update((label, helptext))
 

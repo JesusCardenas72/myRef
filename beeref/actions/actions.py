@@ -217,6 +217,24 @@ actions = BeeActionList([
         group='active_when_items_in_scene',
     ),
     Action(
+        id='export_selection_as_scene',
+        text='Export S&election as Scene...',
+        callback='on_action_export_selection_as_scene',
+        group='active_when_selection',
+    ),
+    Action(
+        id='export_selected_images',
+        text='Export Selected Ima&ges...',
+        callback='on_action_export_selected_images',
+        group='active_when_selection',
+    ),
+    Action(
+        id='copy_as_file',
+        text='Copy as &File',
+        callback='on_action_copy_as_file',
+        group='active_when_selection',
+    ),
+    Action(
         id='quit',
         text='&Quit',
         shortcuts=['Ctrl+Q'],
@@ -337,7 +355,7 @@ actions = BeeActionList([
     ),
     Action(
         id='duplicate',
-        text='D&uplicate',
+        text='Dup&licate',
         shortcuts=['Ctrl+D'],
         callback='on_action_duplicate',
         group='active_when_selection',

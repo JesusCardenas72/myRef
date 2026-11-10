@@ -159,6 +159,27 @@ class SingleCheckboxGroup(GroupBase):
         self.input.setText(_(self.LABEL))
 
 
+class TextGroup(GroupBase):
+    PLACEHOLDER = ''
+
+    def __init__(self):
+        super().__init__()
+        self.input = QtWidgets.QLineEdit()
+        self.input.setPlaceholderText(_(self.PLACEHOLDER))
+        self.set_value(self.settings.valueOrDefault(self.KEY))
+        self.input.textChanged.connect(self.on_value_changed)
+        self.layout.addWidget(self.input)
+        self.layout.addStretch(100)
+        self.ignore_value_changed = False
+
+    def set_value(self, value):
+        self.input.setText(value)
+
+    def retranslate(self):
+        super().retranslate()
+        self.input.setPlaceholderText(_(self.PLACEHOLDER))
+
+
 class MouseBindingGroup(GroupBase):
     """A mouse button plus modifier keys, stored as e.g. ``Ctrl+Right``."""
 
@@ -285,6 +306,23 @@ class AllocationLimitWidget(IntegerGroup):
     MAX = 10000
 
 
+class ExportNameTemplateWidget(TextGroup):
+    TITLE = 'Image File Names:'
+    HELPTEXT = ('Template for file names when exporting images. '
+                '%0: original name, %1: number, %2: zero-padded number, '
+                '%3: scene name. Leave empty for the default names.')
+    PLACEHOLDER = 'e.g. %2 - %0'
+    KEY = 'Export/name_template'
+
+
+class ExportCroppedWidget(SingleCheckboxGroup):
+    TITLE = 'Cropped Images:'
+    HELPTEXT = ('When exporting images, export only the visible area of '
+                'cropped images instead of the whole image.')
+    LABEL = 'Export cropped area only'
+    KEY = 'Export/cropped'
+
+
 class UndoLimitWidget(IntegerGroup):
     TITLE = 'Undo History Size:'
     HELPTEXT = ('How many steps can be undone. Takes effect with the next '
@@ -386,6 +424,13 @@ class SettingsDialog(QtWidgets.QDialog):
         items_layout.addWidget(NormalizeSourceWidget(), 2, 0)
         tabs.addTab(items, '')
 
+        # Export
+        export = QtWidgets.QWidget()
+        export_layout = QtWidgets.QGridLayout()
+        export.setLayout(export_layout)
+        export_layout.addWidget(ExportNameTemplateWidget(), 0, 0)
+        export_layout.addWidget(ExportCroppedWidget(), 0, 1)
+
         # Tablet Mode
         tablet = QtWidgets.QWidget()
         tablet_layout = QtWidgets.QGridLayout()
@@ -395,6 +440,7 @@ class SettingsDialog(QtWidgets.QDialog):
         tablet_layout.addWidget(TabletZoomInvertedWidget(), 1, 0)
         tablet_layout.addWidget(TabletTitlebarButtonWidget(), 1, 1)
         tabs.addTab(tablet, '')
+        tabs.addTab(export, '')
 
         # Lock Icon
         lock_icon = QtWidgets.QWidget()
@@ -430,6 +476,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tabs.setTabText(1, _('&Images && Items'))
         self.tabs.setTabText(2, _('&Tablet Mode'))
         self.tabs.setTabText(3, _('&Lock Icon'))
+        self.tabs.setTabText(4, _('E&xport'))
         self.reset_btn.setText(_('&Restore Defaults'))
 
     def on_restore_defaults(self, *args, **kwargs):

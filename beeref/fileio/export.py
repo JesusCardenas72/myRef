@@ -15,6 +15,8 @@
 
 import base64
 import logging
+import os
+import re
 import pathlib
 from xml.etree import ElementTree as ET
 
@@ -87,18 +89,28 @@ class SceneExporterBase(ExporterBase):
     happen in the main thread: In ``__init__`` and ``prepare``.
     """
 
-    def __init__(self, scene):
+    def __init__(self, scene, items=None):
+        """
+        :param items: Only export these items (and their children);
+            export all items if ``None``.
+        """
         self.scene = scene
+        self.only_items = list(items) if items else None
         self.scene.cancel_active_modes()
         self.scene.deselect_all_items()
         # Selection outlines/handles will be rendered to the exported
         # image, so deselect first. (Alternatively, pass an attribute
         # to paint functions to not paint them?)
-        rect = self.scene.itemsBoundingRect()
+        if self.only_items:
+            rect = self.scene.itemsBoundingRect(items=self.only_items)
+            items = self.only_items
+        else:
+            rect = self.scene.itemsBoundingRect()
+            items = self.scene.items()
         logger.trace(f'Items bounding rect: {rect}')
         self.items_rect = rect
         # Sorted since z order in SVG is specified via the order of elements
-        self.items = sorted(self.scene.items(), key=lambda x: x.zValue())
+        self.items = sorted(items, key=lambda x: x.zValue())
         size = QtCore.QSize(int(rect.width()), int(rect.height()))
         logger.trace(f'Export size without margins: {size}')
         self.margin = max(size.width(), size.height()) * 0.03
@@ -149,11 +161,31 @@ class SceneToPixmapExporter(SceneExporterBase):
             self.size.width() - 2 * margin,
             self.size.height() - 2 * margin)
         logger.trace(f'Final export target_rect: {target_rect}')
-        self.scene.render(painter,
-                          source=self.scene.itemsBoundingRect(),
-                          target=target_rect)
+        hidden = self.hide_other_items()
+        try:
+            self.scene.render(painter,
+                              source=self.items_rect,
+                              target=target_rect)
+        finally:
+            for item in hidden:
+                item.setVisible(True)
         painter.end()
         return image
+
+    def hide_other_items(self):
+        """When exporting only some items, temporarily hide the others
+        so they don't show up where they overlap the exported area."""
+
+        if not self.only_items:
+            return []
+        keep = set(self.only_items)
+        hidden = []
+        for item in self.scene.items():
+            if (item.parentItem() is None and item not in keep
+                    and item.isVisible()):
+                item.setVisible(False)
+                hidden.append(item)
+        return hidden
 
     def prepare(self):
         self.image = self.render_to_image()
@@ -304,6 +336,42 @@ class SceneToSVGExporter(SceneExporterBase):
         self.emit_finished(worker, filename, [])
 
 
+INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+
+
+def format_export_name(template, item, index, total, scene_name,
+                       imgformat):
+    """Build a file name for an exported image from a template.
+
+    Placeholders:
+
+    * ``%0``: Original file name (without extension)
+    * ``%1``: Sequence number, starting at 1
+    * ``%2``: Zero-padded sequence number
+    * ``%3``: Scene name
+
+    Characters that aren't allowed in file names are replaced by ``_``.
+    """
+
+    if item.filename:
+        original = os.path.splitext(os.path.basename(item.filename))[0]
+    else:
+        original = str(index + 1)
+    number = index + 1
+    width = len(str(total))
+    replacements = {
+        '%0': original,
+        '%1': str(number),
+        '%2': str(number).zfill(max(width, 2)),
+        '%3': scene_name,
+    }
+    name = re.sub('%[0-3]', lambda m: replacements[m.group(0)], template)
+    name = INVALID_FILENAME_CHARS.sub('_', name).strip().strip('.')
+    if not name:
+        name = original
+    return f'{name}.{imgformat}'
+
+
 class ImagesToDirectoryExporter(ExporterBase):
     """Export all images to a folder.
 
@@ -311,11 +379,26 @@ class ImagesToDirectoryExporter(ExporterBase):
     not auto-detected by file extension.
     """
 
-    def __init__(self, scene, dirname):
+    def __init__(self, scene, dirname, items=None, name_template='',
+                 export_cropped=False, scene_name=''):
+        """
+        :param items: Only export these items; all images if ``None``.
+        :param name_template: See ``format_export_name``; an empty
+            template keeps the default naming.
+        :param export_cropped: Export only the visible (cropped) area.
+        :param scene_name: Name of the scene for the template.
+        """
         self.scene = scene
         self.dirname = dirname
-        self.items = items_in_order(
-            self.scene.items_by_type(BeePixmapItem.TYPE))
+        if items is None:
+            items = self.scene.items_by_type(BeePixmapItem.TYPE)
+        else:
+            items = [i for i in items
+                     if getattr(i, 'TYPE', None) == BeePixmapItem.TYPE]
+        self.items = items_in_order(items)
+        self.name_template = name_template or ''
+        self.export_cropped = export_cropped
+        self.scene_name = scene_name or ''
         self.max_save_id = 0
         for item in self.items:
             if item.save_id:
@@ -338,9 +421,18 @@ class ImagesToDirectoryExporter(ExporterBase):
                 worker.finished.emit(self.dirname, [])
                 return
 
-            pixmap, imgformat = item.pixmap_to_bytes()
+            pixmap, imgformat = item.pixmap_to_bytes(
+                apply_crop=self.export_cropped)
 
-            if item.save_id:
+            if self.name_template:
+                filename = format_export_name(
+                    self.name_template,
+                    item=item,
+                    index=i,
+                    total=self.num_total,
+                    scene_name=self.scene_name,
+                    imgformat=imgformat)
+            elif item.save_id:
                 filename = item.get_filename_for_export(imgformat)
             else:
                 self.max_save_id += 1

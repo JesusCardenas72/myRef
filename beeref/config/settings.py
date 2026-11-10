@@ -185,6 +185,14 @@ class BeeSettings(QtCore.QSettings):
             'cast': int,
             'validate': lambda x: 0 <= x <= 200,
         },
+        'Export/name_template': {
+            'default': '',
+            'cast': str,
+        },
+        'Export/cropped': {
+            'default': False,
+            'cast': cast_bool,
+        },
         'Items/normalize_source': {
             'default': 'average',
             'validate': lambda x: x in ('average', 'first'),
