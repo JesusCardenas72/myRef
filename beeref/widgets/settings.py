@@ -483,6 +483,54 @@ class WindowResizeBorderWidget(IntegerGroup):
     SUFFIX = ' px'
 
 
+class CanvasGridSizeWidget(IntegerGroup):
+    TITLE = 'Grid Size:'
+    HELPTEXT = ('Distance between the grid lines at 100% zoom. When zoomed '
+                'out, the grid gets coarser.')
+    KEY = 'Canvas/grid_size'
+    MIN = 5
+    MAX = 1000
+    SUFFIX = ' px'
+
+
+class CanvasGridStyleWidget(RadioGroup):
+    TITLE = 'Grid Style:'
+    HELPTEXT = 'How the grid is drawn.'
+    KEY = 'Canvas/grid_style'
+    OPTIONS = (
+        ('lines', 'Lines', ''),
+        ('dots', 'Dots', ''))
+
+
+class CanvasSnapDistanceWidget(IntegerGroup):
+    TITLE = 'Snap Distance:'
+    HELPTEXT = ('How close items have to get to the edges of other items '
+                'to snap to them, in screen pixels. Hold Alt while moving '
+                'to not snap.')
+    KEY = 'Canvas/snap_distance'
+    MIN = 1
+    MAX = 50
+    SUFFIX = ' px'
+
+
+class CanvasHighlightWidget(SingleCheckboxGroup):
+    TITLE = 'Canvas Area:'
+    HELPTEXT = ('Draw the area around all items a bit brighter than the '
+                'background.')
+    LABEL = 'Highlight'
+    KEY = 'Canvas/highlight_canvas'
+
+
+class CanvasMarginWidget(IntegerGroup):
+    TITLE = 'Canvas Margin:'
+    HELPTEXT = ('Space around the items that belongs to the canvas area. '
+                'Also used by View > Canvas > Focus Canvas.')
+    KEY = 'Canvas/margin'
+    MIN = 0
+    MAX = 1000
+    SUFFIX = ' px'
+
+
 class SettingsDialog(QtWidgets.QDialog):
     def __init__(self, parent):
         super().__init__(parent)
@@ -550,6 +598,17 @@ class SettingsDialog(QtWidgets.QDialog):
         window_layout.addWidget(WindowResizeBorderWidget(), 3, 0)
         tabs.addTab(window, '')
 
+        # Canvas
+        canvas = QtWidgets.QWidget()
+        canvas_layout = QtWidgets.QGridLayout()
+        canvas.setLayout(canvas_layout)
+        canvas_layout.addWidget(CanvasGridSizeWidget(), 0, 0)
+        canvas_layout.addWidget(CanvasGridStyleWidget(), 0, 1)
+        canvas_layout.addWidget(CanvasSnapDistanceWidget(), 0, 2)
+        canvas_layout.addWidget(CanvasHighlightWidget(), 1, 0)
+        canvas_layout.addWidget(CanvasMarginWidget(), 1, 1)
+        tabs.addTab(canvas, '')
+
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
         layout.addWidget(tabs)
@@ -577,6 +636,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tabs.setTabText(3, _('&Lock Icon'))
         self.tabs.setTabText(4, _('E&xport'))
         self.tabs.setTabText(5, _('&Window'))
+        self.tabs.setTabText(6, _('&Canvas'))
         self.reset_btn.setText(_('&Restore Defaults'))
 
     def on_restore_defaults(self, *args, **kwargs):

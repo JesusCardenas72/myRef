@@ -25,6 +25,7 @@ from PyQt6.QtCore import Qt
 import rpack
 
 from beeref import commands
+from beeref import snapping
 from beeref.config import BeeSettings
 from beeref.i18n import _
 from beeref.items import (
@@ -61,6 +62,9 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         self.crop_item = None
         self.items_locked = False
         self.grayscale_canvas = False
+        self.snap_guides = []
+        self.move_start_rect = None
+        self.snap_others = []
         self.settings = BeeSettings()
         self.clear()
         self._clear_ongoing = False
@@ -579,6 +583,51 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 self.active_mode = self.RUBBERBAND_MODE
 
         super().mousePressEvent(event)
+        if self.active_mode == self.MOVE_MODE:
+            self.start_move_snapping()
+
+    def start_move_snapping(self):
+        """Remember the selection's bounding rect and the rects of the
+        other items when starting to move items."""
+
+        self.move_start_rect = None
+        self.snap_others = []
+        if not self.has_selection():
+            return
+        self.move_start_rect = self.itemsBoundingRect(selection_only=True)
+        view = self.views()[0] if self.views() else None
+        if getattr(view, 'snap_to_items', False):
+            selected = set(self.selectedItems(user_only=True))
+            self.snap_others = [
+                self.itemsBoundingRect(items=[item])
+                for item in self.items_for_save()
+                if item not in selected and item.isVisible()]
+
+    def snap_move_delta(self, delta, modifiers, axes=(True, True)):
+        """Correct the move delta according to grid and item snapping.
+
+        Holding Alt turns snapping off temporarily.
+        """
+
+        view = self.views()[0] if self.views() else None
+        if (view is None or self.move_start_rect is None
+                or modifiers & Qt.KeyboardModifier.AltModifier):
+            return delta, []
+        grid = (view.grid_size()
+                if getattr(view, 'snap_to_grid', False) else None)
+        others = (self.snap_others
+                  if getattr(view, 'snap_to_items', False) else None)
+        if not grid and not others:
+            return delta, []
+        return snapping.snap_delta(
+            self.move_start_rect, delta, grid_size=grid, others=others,
+            threshold=view.snap_threshold(), axes=axes)
+
+    def set_snap_guides(self, guides):
+        if guides or self.snap_guides:
+            self.snap_guides = guides
+            for view in self.views():
+                view.viewport().update()
 
     def mouseDoubleClickEvent(self, event):
         self.cancel_active_modes()
@@ -611,6 +660,13 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             # that if the move is constrained to an axis
             raw_delta = event.scenePos() - self.event_start
             delta = self.constrain_move_delta(raw_delta, event.modifiers())
+            axes = (True, True)
+            if event.modifiers() == Qt.KeyboardModifier.ShiftModifier:
+                # Don't leave the axis the move is constrained to
+                axes = (delta.x() != 0, delta.y() != 0)
+            delta, guides = self.snap_move_delta(
+                delta, event.modifiers(), axes)
+            self.set_snap_guides(guides)
             correction = raw_delta - delta
             if not correction.isNull():
                 for item in self.selectedItems(user_only=True):
@@ -646,6 +702,9 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                     commands.MoveItemsBy(self.selectedItems(),
                                          delta,
                                          ignore_first_redo=True))
+        self.set_snap_guides([])
+        self.move_start_rect = None
+        self.snap_others = []
         self.active_mode = None
         super().mouseReleaseEvent(event)
 

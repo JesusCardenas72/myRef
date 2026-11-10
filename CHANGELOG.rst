@@ -4,6 +4,19 @@
 Added
 -----
 
+* New View -> Canvas menu:
+
+  * Show a grid of lines or dots (Ctrl + '). It gets coarser when
+    zooming out.
+  * Snap to grid (Ctrl + Shift + ') and snap to the edges and centers
+    of other items (Shift + Space) while moving items, with guide
+    lines. Hold Alt to not snap.
+  * Focus canvas: Fits the view to all items plus the canvas margin.
+  * Optimize canvas: Moves all items to the origin, which keeps
+    zooming and panning precise in scenes that have drifted far away.
+
+* New settings tab "Canvas": grid size and style, snap distance,
+  highlighting the canvas area and its margin.
 * New View -> Window menu with window modes:
 
   * Click-through (Ctrl + Alt + T): The window stays visible, but
