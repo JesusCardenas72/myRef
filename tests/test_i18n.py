@@ -62,19 +62,13 @@ def strings_in_definitions():
     strings.update(MouseConfigBase.BUTTON_MAP)
     strings.update(MOUSE_BINDING_BUTTONS)
 
-    groups = (settings_widgets.LanguageWidget,
-              settings_widgets.ConfirmCloseUnsavedWidget,
-              settings_widgets.ImageStorageFormatWidget,
-              settings_widgets.AllocationLimitWidget,
-              settings_widgets.ArrangeGapWidget,
-              settings_widgets.ArrangeDefaultWidget,
-              settings_widgets.TabletPanWidget,
-              settings_widgets.TabletZoomWidget,
-              settings_widgets.TabletZoomInvertedWidget,
-              settings_widgets.TabletTitlebarButtonWidget,
-              settings_widgets.LockIconCornerWidget,
-              settings_widgets.LockIconSizeWidget,
-              settings_widgets.LockIconTransparencyWidget)
+    # All concrete settings widgets (those that edit a settings key):
+    groups = [
+        cls for cls in vars(settings_widgets).values()
+        if isinstance(cls, type)
+        and issubclass(cls, settings_widgets.GroupBase)
+        and getattr(cls, 'KEY', None)]
+    assert groups
     for group in groups:
         strings.update((group.TITLE, group.HELPTEXT))
         strings.add(getattr(group, 'LABEL', None))

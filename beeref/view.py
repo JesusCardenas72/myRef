@@ -68,7 +68,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
 
         self.undo_stack = QtGui.QUndoStack(self)
-        self.undo_stack.setUndoLimit(100)
+        self.apply_undo_limit()
         self.undo_stack.canRedoChanged.connect(self.on_can_redo_changed)
         self.undo_stack.canUndoChanged.connect(self.on_can_undo_changed)
         self.undo_stack.cleanChanged.connect(self.on_undo_clean_changed)
@@ -228,11 +228,23 @@ class BeeGraphicsView(MainControlsMixin,
         return QtCore.QPoint(round(self.size().width() / 2),
                              round(self.size().height() / 2))
 
+    def apply_undo_limit(self):
+        """Apply the undo limit from the settings.
+
+        Qt only allows changing the limit while the undo stack is empty,
+        so a changed setting takes effect with the next new or opened
+        scene.
+        """
+        if self.undo_stack.count() == 0:
+            self.undo_stack.setUndoLimit(
+                self.settings.valueOrDefault('Performance/undo_limit'))
+
     def clear_scene(self):
         logging.debug('Clearing scene...')
         self.cancel_active_modes()
         self.scene.clear()
         self.undo_stack.clear()
+        self.apply_undo_limit()
         self.filename = None
         self.setTransform(QtGui.QTransform())
 

@@ -1716,3 +1716,21 @@ def test_drop_when_img(view, imgfilename3x3):
     view.dropEvent(event)
     assert len(view.scene.items()) == 1
     assert view.scene.items()[0].isSelected() is True
+
+
+def test_undo_limit_defaults_to_100(view):
+    assert view.undo_stack.undoLimit() == 100
+
+
+def test_undo_limit_applied_from_settings_on_clear_scene(view, settings):
+    settings.setValue('Performance/undo_limit', 250)
+    view.clear_scene()
+    assert view.undo_stack.undoLimit() == 250
+
+
+def test_undo_limit_not_changed_when_stack_not_empty(view, settings):
+    item = BeeTextItem('foo')
+    view.undo_stack.push(commands.InsertItems(view.scene, [item]))
+    settings.setValue('Performance/undo_limit', 250)
+    view.apply_undo_limit()
+    assert view.undo_stack.undoLimit() == 100

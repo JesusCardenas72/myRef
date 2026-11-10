@@ -171,6 +171,11 @@ class BeeSettings(QtCore.QSettings):
             'default': True,
             'cast': cast_bool,
         },
+        'Performance/undo_limit': {
+            'default': 100,
+            'cast': int,
+            'validate': lambda x: 1 <= x <= 1000,
+        },
         'Items/image_storage_format': {
             'default': 'best',
             'validate': lambda x: x in ('png', 'jpg', 'best'),
