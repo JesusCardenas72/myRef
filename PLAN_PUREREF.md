@@ -146,7 +146,7 @@ Código en `__main__.py` (`BeeRefMainWindow`) y `view.py`.
 
 ## Fase 4 · Modelo de escena: grupos, jerarquía, bloqueo y comentarios ✅ (rama `fase-4`)
 
-> Hecha. Decisiones tomadas: el formato sigue siendo `.bee` con el
+> Hecha. (Revisado después: la extensión de guardado pasa a `.mref`; `.bee` sigue abriéndose.) Decisiones tomadas: el formato sigue siendo `.bee` con el
 > mismo `APPLICATION_ID` (los archivos de BeeRef se abren sin
 > cambios); queda documentado que BeeRef original perdería grupos e
 > hijos al guardar un archivo de myRef. `BeeGroupItem` es un

@@ -120,8 +120,8 @@ def _save_and_restart(window, state_dir, timer):
     view.cancel_active_modes()
 
     state_dir.mkdir(parents=True, exist_ok=True)
-    scene_file = state_dir / 'scene.bee'
-    tmp_file = state_dir / 'scene.tmp.bee'
+    scene_file = state_dir / 'scene.mref'
+    tmp_file = state_dir / 'scene.tmp.mref'
     item_count = len(list(view.scene.items_for_save()))
     has_items = item_count > 0
     try:
@@ -166,7 +166,7 @@ def _restore(view, state_dir):
     if not state_file.exists():
         return
     state = json.loads(state_file.read_text('utf-8'))
-    scene_file = state_dir / 'scene.bee'
+    scene_file = state_dir / 'scene.mref'
     recent = view.settings.get_recent_files()
 
     def apply_state(*args):

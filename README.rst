@@ -52,7 +52,7 @@ To get the current development version, you need to have a working Python 3 envi
 
   pip install git+https://github.com/rbreu/beeref.git
 
-Then run ``myRef`` or ``myRef filename.bee``.
+Then run ``myRef`` or ``myRef filename.mref``.
 
 
 Features
@@ -67,12 +67,13 @@ Features
 .. image:: https://github.com/rbreu/beeref/blob/main/images/screenshot.png
 
 
-Regarding the bee file format
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Regarding the myRef file format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-All images are embedded into the bee file as PNG or JPG. The bee file format is a sqlite database inside which the images are stored in an sqlar table—meaning they can be extracted with the `sqlite command line program <https://www.sqlite.org/cli.html>`_::
+Files are saved with the ``.mref`` extension (files with the older ``.bee`` extension can still be opened).
+All images are embedded into the file as PNG or JPG. The file format is a sqlite database inside which the images are stored in an sqlar table—meaning they can be extracted with the `sqlite command line program <https://www.sqlite.org/cli.html>`_::
 
-  sqlite3 myfile.bee -Axv
+  sqlite3 myfile.mref -Axv
 
 Options for exporting from inside myRef are planned, but the above always works independently of myRef.
 

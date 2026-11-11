@@ -44,10 +44,29 @@ from .schema import SCHEMA, USER_VERSION, MIGRATIONS, APPLICATION_ID
 logger = logging.getLogger(__name__)
 
 
-def is_bee_file(path):
-    """Check whether the file at the given path is a bee file."""
+#: Extension of files written by myRef
+FILE_EXTENSION = '.mref'
 
-    return os.path.splitext(path)[1] == '.bee'
+#: Extension of files written by older versions; still readable
+LEGACY_FILE_EXTENSION = '.bee'
+
+
+def is_mref_file(path):
+    """Check whether the file at the given path is a myRef file, with the
+    current or the legacy extension."""
+
+    ext = os.path.splitext(path)[1].lower()
+    return ext in (FILE_EXTENSION, LEGACY_FILE_EXTENSION)
+
+
+def with_mref_extension(path):
+    """Return the path with the current file extension. A legacy extension
+    is replaced, any other extension is kept and the new one appended."""
+
+    root, ext = os.path.splitext(path)
+    if ext.lower() in (FILE_EXTENSION, LEGACY_FILE_EXTENSION):
+        return f'{root}{FILE_EXTENSION}'
+    return f'{path}{FILE_EXTENSION}'
 
 
 def item_depth(item):

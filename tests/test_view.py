@@ -319,7 +319,7 @@ def test_on_action_save_as(dialog_mock, view, imgfilename3x3, tmpdir):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
     view.scene.addItem(item)
     view.cancel_active_modes = MagicMock()
-    filename = os.path.join(tmpdir, 'test.bee')
+    filename = os.path.join(tmpdir, 'test.mref')
     assert os.path.exists(filename) is False
     dialog_mock.return_value = (filename, None)
     view.on_action_save_as()
@@ -342,7 +342,7 @@ def test_on_action_save_as_when_no_filename(
 
 
 @patch('PyQt6.QtWidgets.QFileDialog.getSaveFileName')
-def test_on_action_save_as_filename_doesnt_end_with_bee(
+def test_on_action_save_as_filename_doesnt_end_with_mref(
         dialog_mock, view, qtbot, imgfilename3x3, tmpdir):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
     view.scene.addItem(item)
@@ -353,9 +353,26 @@ def test_on_action_save_as_filename_doesnt_end_with_bee(
     dialog_mock.return_value = (filename, None)
     view.on_action_save_as()
     qtbot.waitUntil(lambda: view.on_saving_finished.called is True)
-    assert os.path.exists(f'{filename}.bee') is True
-    view.on_saving_finished.assert_called_once_with(f'{filename}.bee', [])
+    assert os.path.exists(f'{filename}.mref') is True
+    view.on_saving_finished.assert_called_once_with(f'{filename}.mref', [])
     view.cancel_active_modes.assert_called_once_with()
+
+
+@patch('PyQt6.QtWidgets.QFileDialog.getSaveFileName')
+def test_on_action_save_as_legacy_bee_name_saved_as_mref(
+        dialog_mock, view, qtbot, imgfilename3x3, tmpdir):
+    item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
+    view.scene.addItem(item)
+    view.cancel_active_modes = MagicMock()
+    view.on_saving_finished = MagicMock()
+    filename = os.path.join(tmpdir, 'test.bee')
+    dialog_mock.return_value = (filename, None)
+    view.on_action_save_as()
+    qtbot.waitUntil(lambda: view.on_saving_finished.called is True)
+    assert os.path.exists(os.path.join(tmpdir, 'test.mref')) is True
+    assert os.path.exists(filename) is False
+    view.on_saving_finished.assert_called_once_with(
+        os.path.join(tmpdir, 'test.mref'), [])
 
 
 @patch('PyQt6.QtWidgets.QFileDialog.getSaveFileName')
@@ -366,7 +383,7 @@ def test_on_action_save_as_when_error(
     view.scene.addItem(item)
     view.on_saving_finished = MagicMock()
     view.cancel_active_modes = MagicMock()
-    filename = os.path.join(tmpdir, 'test.bee')
+    filename = os.path.join(tmpdir, 'test.mref')
     dialog_mock.return_value = (filename, None)
     save_mock.side_effect = sqlite3.Error('foo')
     view.on_action_save_as()
@@ -379,7 +396,7 @@ def test_on_action_save(view, qtbot, imgfilename3x3, tmpdir):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
     view.scene.addItem(item)
     view.cancel_active_modes = MagicMock()
-    view.filename = os.path.join(tmpdir, 'test.bee')
+    view.filename = os.path.join(tmpdir, 'test.mref')
     root = os.path.dirname(__file__)
     shutil.copyfile(os.path.join(root, 'assets', 'test1item.bee'),
                     view.filename)
@@ -388,6 +405,18 @@ def test_on_action_save(view, qtbot, imgfilename3x3, tmpdir):
     qtbot.waitUntil(lambda: view.on_saving_finished.called is True)
     assert os.path.exists(view.filename) is True
     view.on_saving_finished.assert_called_once_with(view.filename, [])
+    view.cancel_active_modes.assert_called_once_with()
+
+
+@patch('myRef.view.BeeGraphicsView.on_action_save_as')
+def test_on_action_save_legacy_bee_file_asks_for_new_name(
+        save_as_mock, view, imgfilename3x3, tmpdir):
+    item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
+    view.scene.addItem(item)
+    view.cancel_active_modes = MagicMock()
+    view.filename = os.path.join(tmpdir, 'test.bee')
+    view.on_action_save()
+    save_as_mock.assert_called_once_with()
     view.cancel_active_modes.assert_called_once_with()
 
 

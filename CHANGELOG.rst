@@ -40,6 +40,9 @@ Added
 Changed
 -------
 
+* Files are saved with the ``.mref`` extension instead of ``.bee``. Files
+  with the ``.bee`` extension can still be opened; saving one of them
+  asks for a new ``.mref`` file name and leaves the original untouched.
 * Moving the window is now Right Click + Drag (pans while maximized);
   Ctrl + Alt + Drag scales items instead.
 * Ctrl + Click no longer toggles the selection (Ctrl + Drag rotates);

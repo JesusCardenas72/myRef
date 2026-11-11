@@ -7,18 +7,31 @@ from unittest.mock import MagicMock, patch
 from PyQt6 import QtCore, QtGui
 import pytest
 
-from myRef.fileio import schema, is_bee_file
+from myRef.fileio import schema, is_mref_file, with_mref_extension
 from myRef.fileio.errors import BeeFileIOError
 from myRef.fileio.sql import SQLiteIO
 from myRef.items import BeePixmapItem, BeeTextItem, BeeErrorItem
 
 
 @pytest.mark.parametrize('filename,expected',
-                         [(os.path.join('foo', 'bar.bee'), True),
+                         [(os.path.join('foo', 'bar.mref'), True),
+                          (os.path.join('foo', 'bar.MREF'), True),
+                          (os.path.join('foo', 'bar.bee'), True),
                           (os.path.join('foo', 'bar.png'), False),
                           (os.path.join('foo', 'bar'), False)])
-def test_is_bee_file(filename, expected):
-    assert is_bee_file(filename) is expected
+def test_is_mref_file(filename, expected):
+    assert is_mref_file(filename) is expected
+
+
+@pytest.mark.parametrize('filename,expected',
+                         [('foo', 'foo.mref'),
+                          ('foo.mref', 'foo.mref'),
+                          ('foo.bee', 'foo.mref'),
+                          ('foo.v2', 'foo.v2.mref'),
+                          (os.path.join('a.b', 'foo.bee'),
+                           os.path.join('a.b', 'foo.mref'))])
+def test_with_mref_extension(filename, expected):
+    assert with_mref_extension(filename) == expected
 
 
 def test_sqliteio_migrate_does_nothing_when_version_ok(tmpfile):

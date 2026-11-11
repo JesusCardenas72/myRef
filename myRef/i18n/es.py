@@ -650,7 +650,8 @@ TRANSLATIONS = {
     'Hay cambios sin guardar. ¿Seguro que quieres salir?',
     'Open file': 'Abrir archivo',
     'Save file': 'Guardar archivo',
-    '{app} File (*.bee)': 'Archivo de {app} (*.bee)',
+    '{app} File (*.mref)': 'Archivo de {app} (*.mref)',
+    '{app} File (*.mref *.bee)': 'Archivo de {app} (*.mref *.bee)',
     'Image Files (*.png *.jpg *.jpeg *.svg)':
     'Archivos de imagen (*.png *.jpg *.jpeg *.svg)',
     'Export Images': 'Exportar imágenes',

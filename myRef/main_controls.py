@@ -103,10 +103,10 @@ class MainControlsMixin:
         if mimedata.hasUrls():
             logger.debug(f'Found dropped urls: {mimedata.urls()}')
             if not self.control_target.scene.items():
-                # Check if we have a bee file we can open directly
+                # Check if we have a myRef file we can open directly
                 path = mimedata.urls()[0]
                 if (path.isLocalFile()
-                        and fileio.is_bee_file(path.toLocalFile())):
+                        and fileio.is_mref_file(path.toLocalFile())):
                     self.control_target.open_from_file(path.toLocalFile())
                     return
             self.control_target.do_insert_images(mimedata.urls(), pos)

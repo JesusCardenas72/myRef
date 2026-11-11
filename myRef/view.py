@@ -137,7 +137,7 @@ class BeeGraphicsView(MainControlsMixin,
         # Load files given via command line
         if commandline_args.filenames:
             fn = commandline_args.filenames[0]
-            if os.path.splitext(fn)[1] == '.bee':
+            if fileio.is_mref_file(fn):
                 self.open_from_file(fn)
             else:
                 self.do_insert_images(commandline_args.filenames)
@@ -1040,14 +1040,13 @@ class BeeGraphicsView(MainControlsMixin,
         self.set_draw_tool('eraser')
 
     def open_link(self, url):
-        """Open a link from a text note. Links to bee files are opened
+        """Open a link from a text note. Links to myRef files are opened
         in myRef."""
 
         qurl = QtCore.QUrl(url)
         if qurl.isRelative():
             qurl = QtCore.QUrl.fromUserInput(url)
-        if qurl.isLocalFile() and qurl.toLocalFile().lower().endswith(
-                '.bee'):
+        if qurl.isLocalFile() and fileio.is_mref_file(qurl.toLocalFile()):
             self.on_action_open_recent_file(qurl.toLocalFile())
             return
         logger.info(f'Opening link: {qurl.toString()}')
@@ -1168,7 +1167,8 @@ class BeeGraphicsView(MainControlsMixin,
         filename, f = QtWidgets.QFileDialog.getOpenFileName(
             parent=self,
             caption=_('Open file'),
-            filter=_('{app} File (*.bee)').format(app=constants.APPNAME))
+            filter=_('{app} File (*.mref *.bee)').format(
+                app=constants.APPNAME))
         if filename:
             filename = os.path.normpath(filename)
             self.open_from_file(filename)
@@ -1186,8 +1186,7 @@ class BeeGraphicsView(MainControlsMixin,
             self.undo_stack.setClean()
 
     def do_save(self, filename, create_new):
-        if not fileio.is_bee_file(filename):
-            filename = f'{filename}.bee'
+        filename = fileio.with_mref_extension(filename)
         self.worker = fileio.ThreadedIO(
             fileio.save_bee, filename, self.scene, create_new=create_new)
         self.worker.finished.connect(self.on_saving_finished)
@@ -1204,13 +1203,15 @@ class BeeGraphicsView(MainControlsMixin,
             parent=self,
             caption=_('Save file'),
             directory=directory,
-            filter=_('{app} File (*.bee)').format(app=constants.APPNAME))
+            filter=_('{app} File (*.mref)').format(app=constants.APPNAME))
         if filename:
             self.do_save(filename, create_new=True)
 
     def on_action_save(self):
         self.cancel_active_modes()
-        if not self.filename:
+        # Files with the legacy extension are saved as a new .mref file
+        ext = os.path.splitext(self.filename or '')[1].lower()
+        if ext != fileio.FILE_EXTENSION:
             self.on_action_save_as()
         else:
             self.do_save(self.filename, create_new=False)

@@ -22,12 +22,19 @@ from myRef import commands
 from myRef.config import BeeSettings
 from myRef.fileio.errors import BeeFileIOError
 from myRef.fileio.image import load_image_list
-from myRef.fileio.sql import SQLiteIO, is_bee_file
+from myRef.fileio.sql import (
+    SQLiteIO,
+    FILE_EXTENSION,
+    is_mref_file,
+    with_mref_extension,
+)
 from myRef.items import BeePixmapItem
 
 
 __all__ = [
-    'is_bee_file',
+    'FILE_EXTENSION',
+    'is_mref_file',
+    'with_mref_extension',
     'load_bee',
     'save_bee',
     'load_images',
