@@ -1,5 +1,5 @@
-Unreleased
-==========
+0.6.0 (2026-11-11)
+==================
 
 Added
 -----
@@ -40,6 +40,7 @@ Added
 Changed
 -------
 
+* New application icon.
 * Files are saved with the ``.mref`` extension instead of ``.bee``. Files
   with the ``.bee`` extension can still be opened; saving one of them
   asks for a new ``.mref`` file name and leaves the original untouched.

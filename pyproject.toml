@@ -10,7 +10,7 @@ include = ["myRef*"]
 
 [project]
 name = "myRef"
-version = "0.5.0"
+version = "0.6.0"
 description = "A simple reference image viewer"
 readme = "README.rst"
 license = {file = "LICENSE"}
