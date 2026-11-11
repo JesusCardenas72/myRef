@@ -635,6 +635,10 @@ def test_titlebar_button_rebuild_replaces_it(view):
 
 
 def test_titlebar_button_rebuild_without_button_does_nothing(view):
+    # On Windows the view already creates the button on startup
+    with patch.object(TitleBarButton, 'is_supported', return_value=False):
+        view.update_titlebar_button()
+    assert view.titlebar_button is None
     with patch.object(TitleBarButton, 'is_supported', return_value=True):
         view.rebuild_titlebar_button()
     assert view.titlebar_button is None
