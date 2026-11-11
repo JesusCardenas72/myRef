@@ -75,6 +75,28 @@ def sort_by_filename(items):
     return items_by_filename + items_by_save_id + items_remaining
 
 
+def sort_by_name(items):
+    """Order items by their name.
+
+    Items named by the user are ordered by that name, unnamed items by
+    the name of their file (without the directory). Items with neither
+    follow in their hierarchy order.
+    """
+
+    def name_of(item):
+        if getattr(item, 'name', ''):
+            return item.name
+        filename = getattr(item, 'filename', None)
+        if filename:
+            return os.path.basename(filename)
+        return None
+
+    named = [item for item in items if name_of(item)]
+    unnamed = [item for item in items if not name_of(item)]
+    named.sort(key=lambda item: name_of(item).casefold())
+    return named + items_in_order(unnamed)
+
+
 def sort_by_addition(items):
     """Order items by the time they were added to the scene.
 
@@ -309,7 +331,16 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         self.init_selectable()
         self.settings = BeeSettings()
         self.grayscale = False
-        self.nearest_neighbor = False
+        self.nearest_neighbor = (
+            self.settings.valueOrDefault('Images/default_sampling')
+            == 'nearest')
+        #: The image data has changed since loading (needs saving)
+        self.pixmap_dirty = False
+        #: Only the path is saved, not the image data
+        self.linked = False
+        #: Format for storing the image data ('png', 'jpg', 'bmp' or
+        #: 'best'); ``None`` for the format from the settings
+        self.storage_format = None
 
     @classmethod
     def create_from_data(self, **kwargs):
@@ -318,9 +349,15 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         item.filename = item.filename or data.get('filename')
         if 'crop' in data:
             item.crop = QtCore.QRectF(*data['crop'])
+        if not data:
+            # A new image (not loaded from a bee file) keeps its
+            # defaults, like linking and the default sampling
+            return item
         item.setOpacity(data.get('opacity', 1))
         item.grayscale = data.get('grayscale', False)
         item.nearest_neighbor = data.get('nearest_neighbor', False)
+        item.linked = data.get('linked', False)
+        item.storage_format = data.get('storage_format')
         return item
 
     def __str__(self):
@@ -430,6 +467,10 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
                          self.crop.height()]}
         if self.nearest_neighbor:
             data['nearest_neighbor'] = True
+        if self.linked:
+            data['linked'] = True
+        if self.storage_format:
+            data['storage_format'] = self.storage_format
         return data
 
     def get_filename_for_export(self, imgformat, save_id_default=None):
@@ -445,7 +486,8 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
     def get_imgformat(self, img):
         """Determines the format for storing this image."""
 
-        formt = self.settings.valueOrDefault('Items/image_storage_format')
+        formt = (self.storage_format
+                 or self.settings.valueOrDefault('Items/image_storage_format'))
 
         if formt == 'best':
             # Images with alpha channel and small images are stored as png
@@ -497,6 +539,8 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         item.setOpacity(self.opacity())
         item.grayscale = self.grayscale
         item.nearest_neighbor = self.nearest_neighbor
+        item.linked = self.linked
+        item.storage_format = self.storage_format
         if self.flip() == -1:
             item.do_flip()
         item.crop = self.crop
@@ -748,6 +792,8 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
             if handle().contains(event.pos()):
                 self.crop_mode_event_start = event.pos()
                 self.crop_mode_move = handle
+                self.crop_mode_start_rect = QtCore.QRectF(self.crop_temp)
+                self.crop_mode_press_pos = event.pos()
                 return
         for edge in self.crop_edges():
             # Click into an edge handle?
@@ -799,6 +845,53 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
 
         return point
 
+    def constrain_crop_aspect(self, modifiers, pos):
+        """While dragging a corner of the crop rect, Shift keeps its
+        aspect ratio and Shift+Alt makes it square."""
+
+        shift = Qt.KeyboardModifier.ShiftModifier
+        alt = Qt.KeyboardModifier.AltModifier
+        if (not modifiers & shift
+                or self.crop_mode_move not in self.crop_handles()):
+            return
+        start = getattr(self, 'crop_mode_start_rect', None)
+        if start is None or start.width() <= 0 or start.height() <= 0:
+            return
+        if modifiers & alt:
+            ratio = 1
+        else:
+            ratio = start.width() / start.height()
+
+        handle = self.crop_mode_move
+        # The corner opposite to the dragged one stays where it is
+        left = handle in (self.crop_handle_topleft,
+                          self.crop_handle_bottomleft)
+        top = handle in (self.crop_handle_topleft,
+                         self.crop_handle_topright)
+        anchor_x = start.right() if left else start.left()
+        anchor_y = start.bottom() if top else start.top()
+        # Where the dragged corner would be without constraints
+        moved = pos - self.crop_mode_press_pos
+        corner_x = (start.left() if left else start.right()) + moved.x()
+        corner_y = (start.top() if top else start.bottom()) + moved.y()
+        width = max(1, (anchor_x - corner_x) if left
+                    else (corner_x - anchor_x))
+        height = max(1, (anchor_y - corner_y) if top
+                     else (corner_y - anchor_y))
+        if width / height > ratio:
+            width = height * ratio
+        else:
+            height = width / ratio
+        size = self.pixmap().size()
+        max_width = anchor_x if left else size.width() - anchor_x
+        max_height = anchor_y if top else size.height() - anchor_y
+        shrink = min(1, max_width / width, max_height / height)
+        width *= shrink
+        height *= shrink
+        x = anchor_x - width if left else anchor_x
+        y = anchor_y - height if top else anchor_y
+        self.crop_temp = QtCore.QRectF(x, y, width, height)
+
     def mouseMoveEvent(self, event):
         if self.crop_mode and self.crop_mode_event_start:
             diff = event.pos() - self.crop_mode_event_start
@@ -834,6 +927,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
                 new = self.ensure_point_within_crop_bounds(
                     self.crop_temp.topRight() + diff, self.crop_mode_move)
                 self.crop_temp.setRight(new.x())
+            self.constrain_crop_aspect(event.modifiers(), event.pos())
             self.update()
             self.crop_mode_event_start = event.pos()
             event.accept()
@@ -1141,12 +1235,20 @@ class BeeErrorItem(BeeItemMixin, QtWidgets.QGraphicsTextItem):
         self.is_image = False
         self.init_selectable()
         self.is_editable = False
+        #: A linked image whose file is missing (can be relinked)
+        self.missing_link = False
+        #: The item's data from the bee file, for relinking
+        self.original_data = None
         self.setDefaultTextColor(QtGui.QColor(*COLORS['Scene:Text']))
 
     @classmethod
     def create_from_data(cls, **kwargs):
         data = kwargs.get('data', {})
-        item = cls(**data)
+        item = cls(text=data.get('text'))
+        if data.get('missing_link'):
+            item.missing_link = True
+            item.original_data = dict(kwargs)
+            item.original_data['data'] = dict(data.get('original', {}))
         return item
 
     def __str__(self):

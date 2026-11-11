@@ -36,6 +36,7 @@ from myRef.items import (
     sibling_order,
     sort_by_addition,
     sort_by_filename,
+    sort_by_name,
     BeeErrorItem,
     BeeGroupItem,
     TitleGhostItem,
@@ -393,6 +394,22 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                                Qt.ItemSelectionMode.IntersectsItemShape,
                                Qt.SortOrder.DescendingOrder,
                                view.transform()):
+            result = self._interactive_item(item)
+            if result is not None:
+                return result
+        return None
+
+    def user_item_at(self, pos):
+        """Like ``interactive_item_at``, but skipping helper items like
+        the outline of a multi-selection."""
+
+        view = self.views()[0]
+        for item in self.items(pos,
+                               Qt.ItemSelectionMode.IntersectsItemShape,
+                               Qt.SortOrder.DescendingOrder,
+                               view.transform()):
+            if not hierarchy.is_user_item(item):
+                continue
             result = self._interactive_item(item)
             if result is not None:
                 return result
@@ -945,10 +962,16 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
     def arrange_square(self, order='filename', items=None):
         """Arrange items in a square grid.
 
-        :param order: "filename", "addition" (time added) or "random".
+        Arranging the same items in the same order twice in a row
+        reverses the order.
+
+        :param order: "filename" (path), "name", "order" (hierarchy
+            order), "addition" (time added) or "random".
         """
         orders = {
             'filename': sort_by_filename,
+            'name': sort_by_name,
+            'order': items_in_order,
             'addition': sort_by_addition,
             'random': self._shuffled,
         }
@@ -960,6 +983,16 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
 
         if len(items) < 2:
             return
+
+        key = (order, frozenset(id(item) for item in items))
+        last = getattr(self, 'last_arrange', None)
+        reverse = False
+        if (order != 'random' and last is not None
+                and last[0] == key
+                and last[1] == self.undo_stack.index()):
+            reverse = not last[2]
+        if reverse:
+            items.reverse()
 
         for item in items:
             rect = self.itemsBoundingRect(items=[item])
@@ -987,6 +1020,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                     break
 
         self.undo_stack.push(commands.ArrangeItems(self, items, positions))
+        self.last_arrange = (key, self.undo_stack.index(), reverse)
 
     def duplicate_selection(self, offset):
         """Insert copies of the selected items, moved by ``offset``."""
@@ -1091,10 +1125,15 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 and self.start_group_interaction(event)):
             return
 
+        self.shift_click = None
+        self.rubberband_base = []
         if event.button() == Qt.MouseButton.LeftButton:
             self.event_start = event.scenePos()
             self.last_move_delta = None
             item_at_pos = self.interactive_item_at(event.scenePos())
+            if (item_at_pos is None and not self.edit_item
+                    and not self.crop_item):
+                self.notify_locked_item_at(event.scenePos())
 
             if self.edit_item:
                 if item_at_pos != self.edit_item:
@@ -1108,14 +1147,47 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 else:
                     super().mousePressEvent(event)
                     return
+            shift = event.modifiers() == Qt.KeyboardModifier.ShiftModifier
             if item_at_pos:
                 self.active_mode = self.MOVE_MODE
+                target = (self.user_item_at(event.scenePos())
+                          if shift else None)
+                if target is not None:
+                    # Shift+Click adds to (or removes from) the selection
+                    self.shift_click = (target, target.isSelected())
+                    target.setSelected(True)
             elif self.items():
                 self.active_mode = self.RUBBERBAND_MODE
+                if shift:
+                    # Continuous select: the rubberband adds to the
+                    # selection
+                    self.rubberband_base = self.selectedItems(user_only=True)
 
         super().mousePressEvent(event)
+        self.restore_rubberband_base()
         if self.active_mode == self.MOVE_MODE:
             self.start_move_snapping()
+
+    def restore_rubberband_base(self):
+        for item in getattr(self, 'rubberband_base', []):
+            if item.scene() is self:
+                item.setSelected(True)
+
+    def notify_locked_item_at(self, pos):
+        """Clicking an item that has been locked on its own offers to
+        unlock it."""
+
+        view = self.views()[0] if self.views() else None
+        if view is None or not hasattr(view, 'show_unlock_button'):
+            return
+        for item in self.items(pos, Qt.ItemSelectionMode.IntersectsItemShape,
+                               Qt.SortOrder.DescendingOrder,
+                               view.transform()):
+            if not hierarchy.is_user_item(item):
+                continue
+            if getattr(item, 'locked', False):
+                view.show_unlock_button(item)
+            return
 
     def start_move_snapping(self):
         """Remember the selection's bounding rect and the rects of the
@@ -1202,6 +1274,10 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                     inner.setSelected(True)
                 return
             item = target
+        if (getattr(item, 'missing_link', False) and not self.items_locked
+                and hasattr(self.views()[0], 'relink_items')):
+            self.views()[0].relink_items([item])
+            return
         if item:
             if not item.isSelected():
                 item.setSelected(True)
@@ -1232,6 +1308,7 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
                 self.rubberband_item.bring_to_front()
             self.rubberband_item.fit(self.event_start, event.scenePos())
             self.setSelectionArea(self.rubberband_item.shape())
+            self.restore_rubberband_base()
             self.views()[0].reset_previous_transform()
         super().mouseMoveEvent(event)
         if self.is_moving_items():
@@ -1290,6 +1367,24 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             return
         if self.active_mode == self.RUBBERBAND_MODE:
             self.end_rubberband_mode()
+            self.rubberband_base = []
+        shift_click = getattr(self, 'shift_click', None)
+        self.shift_click = None
+        if (shift_click is not None
+                and event.button() == Qt.MouseButton.LeftButton
+                and (event.scenePos() - self.event_start).manhattanLength()
+                < 1):
+            # A Shift+Click without moving: Qt would select only the
+            # clicked item, so we handle it ourselves
+            item, was_selected = shift_click
+            if was_selected:
+                item.setSelected(False)
+            grabber = self.mouseGrabberItem()
+            if grabber is not None:
+                grabber.ungrabMouse()
+            self.active_mode = None
+            event.accept()
+            return
         if self.is_moving_items():
             delta = getattr(self, 'last_move_delta', None)
             if delta is None:

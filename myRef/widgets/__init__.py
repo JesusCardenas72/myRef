@@ -33,6 +33,7 @@ from myRef.widgets import (  # noqa: F401
     textformat,
     drawing,
     groups,
+    manage_images,
 )
 
 

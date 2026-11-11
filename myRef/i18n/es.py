@@ -366,13 +366,11 @@ TRANSLATIONS = {
     # Actions: Normalize
     '&Height': '&Altura',
     '&Width': 'A&nchura',
-    '&Size': '&Tamaño',
 
     # Actions: Arrange
     '&Optimal': 'Ó&ptimo',
     '&Horizontal (by filename)': '&Horizontal (por nombre de archivo)',
     '&Vertical (by filename)': '&Vertical (por nombre de archivo)',
-    '&Square (by filename)': '&Cuadrado (por nombre de archivo)',
 
     # Actions: Images
     'Change &Opacity...': 'Cambiar &opacidad...',
@@ -509,7 +507,6 @@ TRANSLATIONS = {
     'Zoom &Out': 'Ale&jar',
     'Act&ual Size': 'Tamaño &real',
     '&Center on Origin': 'Centrar en el ori&gen',
-    '&Longest Side': 'Lado más &largo',
     'S&cale': '&Escala',
     'Square (by &time added)': 'Cuadrado (por orden de &inserción)',
     'Square (ran&dom)': 'Cuadrado (&aleatorio)',
@@ -705,4 +702,115 @@ TRANSLATIONS = {
     'Image could not be loaded: {filename}\n':
     'No se pudo cargar la imagen: {filename}\n',
     'Item of unknown type: {typ}': 'Elemento de tipo desconocido: {typ}',
+
+    # PureRef image features (PLAN_IMAGENES.md)
+    '&Area': 'Á&rea',
+    '&Size (Longest Side)': '&Tamaño (lado más largo)',
+    '&Square (by path)': '&Cuadrado (por ruta)',
+    'Square (by &name)': 'Cuadrado (por &nombre)',
+    'Square (by hierarchy &order)': 'Cuadrado (por &orden de jerarquía)',
+    '&Edit Item': 'E&ditar elemento',
+    'Focus &Next Image': 'En&focar imagen siguiente',
+    'Focus Previous Image': 'Enfocar imagen anterior',
+    'Sli&deshow': 'Pase de &diapositivas',
+    'Open &Source': 'Abrir orige&n',
+    '&Replace Image...': '&Reemplazar imagen...',
+    'Re&link Missing Images...': 'Re&enlazar imágenes perdidas...',
+    '&Manage Images...': 'Ge&stionar imágenes...',
+    'Rotate Items': 'Rotar elementos',
+    'Rotate Items (Snapped)': 'Rotar elementos (con ajuste)',
+    'Scale Items': 'Escalar elementos',
+    'Change Opacity': 'Cambiar opacidad',
+    'Flip Items': 'Voltear elementos',
+    'Rotation: {angle}°': 'Rotación: {angle}°',
+    'Scale: {percent}%': 'Escala: {percent}%',
+    'Opacity: {percent}%': 'Opacidad: {percent}%',
+    'No color': 'Sin color',
+    'Canvas: {x}, {y}': 'Lienzo: {x}, {y}',
+    'Pixel: {x}, {y}': 'Píxel: {x}, {y}',
+    'Size: {width} × {height}': 'Tamaño: {width} × {height}',
+    'No images for a slideshow': 'No hay imágenes para el pase',
+    'Slideshow started (Alt+S or Esc to stop)':
+    'Pase de diapositivas iniciado (Alt+S o Esc para terminar)',
+    'This image has no source (it was pasted)':
+    'Esta imagen no tiene origen (se pegó)',
+    'Source file not found: {filename}':
+    'No se encuentra el archivo de origen: {filename}',
+    'Select the replacement image': 'Elige la imagen de reemplazo',
+    'Unlock': 'Desbloquear',
+    'Unlock this item (Alt+L locks it again)':
+    'Desbloquear este elemento (Alt+L lo vuelve a bloquear)',
+    'No missing images': 'No hay imágenes perdidas',
+    'Select the new location of {name}':
+    'Elige la nueva ubicación de {name}',
+    'Select a folder containing the missing images':
+    'Elige una carpeta que contenga las imágenes perdidas',
+    'Relinked {found} image(s), {missing} still missing':
+    '{found} imagen(es) reenlazada(s), faltan {missing}',
+    ('Linked image not found: {filename}\n'
+     'Double-click to relink it (or Ctrl+Alt+Shift+R).'):
+    ('No se encuentra la imagen enlazada: {filename}\n'
+     'Haz doble clic para reenlazarla (o Ctrl+Alt+Mayús+R).'),
+    'No images in the scene': 'No hay imágenes en la escena',
+    '{num} image(s) changed': '{num} imagen(es) modificada(s)',
+    'Manage images': 'Gestionar imágenes',
+    '{num} image(s) (the selected ones, or all if none are selected)':
+    '{num} imagen(es) (las seleccionadas, o todas si no hay selección)',
+    'Downscale images larger than': 'Reducir las imágenes mayores de',
+    'Longest side:': 'Lado más largo:',
+    'Optimize': 'Optimizar',
+    'Unchanged': 'Sin cambios',
+    'Automatic (PNG with transparency, else JPG)':
+    'Automático (PNG si hay transparencia, si no JPG)',
+    'Format:': 'Formato:',
+    'Discard cropped pixels': 'Descartar los píxeles recortados',
+    'Image data location': 'Ubicación de los datos de imagen',
+    'Embed in the scene file': 'Incrustar en el archivo de la escena',
+    'Link to image files': 'Enlazar a archivos de imagen',
+    'Location:': 'Ubicación:',
+    'Browse...': 'Examinar...',
+    'Folder for new files:': 'Carpeta para los archivos nuevos:',
+    '%0 original name, %1 number, %2 number with leading zeros, '
+    '%3 scene name':
+    '%0 nombre original, %1 número, %2 número con ceros a la izquierda, '
+    '%3 nombre de la escena',
+    'File name template:': 'Plantilla de nombre:',
+    'Replace existing files': 'Reemplazar los archivos existentes',
+    'Affected images:': 'Imágenes afectadas:',
+    ('⚠ The image data of marked images is changed. '
+     'This can be undone with Ctrl+Z.'):
+    ('⚠ Se modifican los datos de las imágenes marcadas. '
+     'Se puede deshacer con Ctrl+Z.'),
+    'No images are affected': 'No se modifica ninguna imagen',
+    'Folder for linked images': 'Carpeta para las imágenes enlazadas',
+    'Please choose a folder for the new image files.':
+    'Elige una carpeta para los archivos de imagen nuevos.',
+    'Could not write {path}': 'No se pudo escribir {path}',
+    'automatic format': 'formato automático',
+    'linked': 'enlazada',
+    'embedded': 'incrustada',
+    'Local Images:': 'Imágenes locales:',
+    ('When turned off, images opened from disk are linked: '
+     'the bee file only stores their path.'):
+    ('Si se desactiva, las imágenes abiertas desde el disco se enlazan: '
+     'el archivo bee solo guarda su ruta.'),
+    'Embed local images in save file':
+    'Incrustar las imágenes locales al guardar',
+    'Default Image Sampling:': 'Muestreo de imagen por defecto:',
+    'How newly added images are scaled (Alt+T per image)':
+    'Cómo se escalan las imágenes nuevas (Alt+T para cada imagen)',
+    'Bilinear': 'Bilineal',
+    'Smooth, but blurry when zoomed in':
+    'Suave, pero borroso al acercar el zoom',
+    'Nearest Neighbor': 'Vecino más próximo',
+    'Crisp pixels, e.g. for pixel art':
+    'Píxeles nítidos, p. ej. para pixel art',
+    'Slideshow Interval:': 'Intervalo del pase de diapositivas:',
+    'Seconds each image is shown in a slideshow (Alt+S)':
+    'Segundos que se muestra cada imagen en el pase (Alt+S)',
+    'Rotation Snap:': 'Ajuste de rotación:',
+    ('Angle in degrees for snapped rotation '
+     '(Shift on the handles, Ctrl+Shift+Drag)'):
+    ('Ángulo en grados para la rotación con ajuste '
+     '(Mayús en las asas, Ctrl+Mayús+arrastrar)'),
 }

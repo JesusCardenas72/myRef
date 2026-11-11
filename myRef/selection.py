@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import QGraphicsItem
 
 from myRef.assets import BeeAssets
 from myRef import commands
-from myRef.config import CommandlineArgs
+from myRef.config import BeeSettings, CommandlineArgs
 from myRef.constants import COLORS
 from myRef import utils
 
@@ -427,6 +427,7 @@ class SelectableMixin(BaseItemMixin):
                         event.scenePos())
                     self.event_anchor = self.mapToScene(
                         self.get_scale_anchor(corner))
+                    self.scale_center = self.center_scene_coords
                     for item in self.selection_action_items():
                         item.scale_orig_factor = item.scale()
                         item.scale_orig_pos = item.pos()
@@ -493,11 +494,13 @@ class SelectableMixin(BaseItemMixin):
     def get_rotate_delta(self, pos, snap=False):
         """Get the rotate delta for the current mouse movement.
 
-        If ``snap`` is True, snap to 15 degree units."""
+        If ``snap`` is True, snap to multiples of the angle from the
+        settings (Items/rotation_snap, 45 degrees by default)."""
 
         delta = self.get_rotate_angle(pos) - self.rotate_start_angle
         if snap:
-            target = utils.round_to(self.rotate_orig_degrees + delta, 15)
+            step = BeeSettings().valueOrDefault('Items/rotation_snap')
+            target = utils.round_to(self.rotate_orig_degrees + delta, step)
             delta = target - self.rotate_orig_degrees
 
         return delta
@@ -569,12 +572,20 @@ class SelectableMixin(BaseItemMixin):
 
     def get_transform_anchor(self, event):
         """The scene anchor for scaling/rotating, or ``None`` if each item
-        should be transformed around its own center (Shift + Alt)."""
+        should be transformed around its own center (Shift + Alt).
+
+        While scaling, Alt scales around the center of the selection
+        instead of the opposite corner.
+        """
 
         own_centers = (Qt.KeyboardModifier.ShiftModifier
                        | Qt.KeyboardModifier.AltModifier)
         if event.modifiers() == own_centers:
             return None
+        if (self.active_mode == self.SCALE_MODE
+                and event.modifiers() == Qt.KeyboardModifier.AltModifier
+                and getattr(self, 'scale_center', None) is not None):
+            return self.scale_center
         return self.event_anchor
 
     @staticmethod

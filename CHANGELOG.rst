@@ -1,3 +1,58 @@
+Unreleased
+==========
+
+Added
+-----
+
+* Image features and shortcuts from PureRef's handbook (see
+  ``PLAN_IMAGENES.md``):
+
+  * Transform by dragging anywhere on an item: rotate (Ctrl), snapped
+    rotate (Ctrl + Shift), scale (Ctrl + Alt), opacity
+    (Ctrl + Alt + Shift) and flip in the drag direction (Alt + Shift).
+    Configurable in Settings -> Keyboard & Mouse.
+  * Hold a key and drag: C crops the selected images to a rectangle,
+    V pans the image inside its crop, Shift + V zooms inside the crop,
+    Z zooms the view, S shows the colour and D the pixel coordinates
+    under the cursor.
+  * Crop handles: Shift keeps the aspect ratio, Shift + Alt makes a
+    square. Alt on the scale handles scales from the center.
+  * Shift + Click adds to or removes from the selection; Shift + Drag on
+    the empty canvas adds to the selection.
+  * Return edits the selected note or drawing, or enters the group.
+  * Focus next/previous image (Right/Left) and slideshow (Alt + S,
+    interval in the settings).
+  * Open source (Ctrl + Shift + O), replace image, and a button to
+    unlock a locked item by clicking on it.
+  * Linked images: with "Embed local images in save file" turned off,
+    bee files only store the path of images opened from disk. Missing
+    files can be relinked (Ctrl + Alt + Shift + R or double-click).
+  * Manage images (Ctrl + Shift + J): downscale, convert the storage
+    format, discard cropped pixels, embed or link, with a preview.
+  * Pasting or dropping the address of a web page imports all its
+    images; pasting files copied in the file browser inserts them.
+  * Arrange by name (Ctrl + Alt + N), path (Ctrl + Alt + D) and
+    hierarchy order (Ctrl + Alt + O); arranging twice reverses the
+    order.
+  * Settings for the default image sampling and the rotation snap
+    angle (45 degrees by default, as in PureRef).
+
+Changed
+-------
+
+* Moving the window is now Right Click + Drag (pans while maximized);
+  Ctrl + Alt + Drag scales items instead.
+* Ctrl + Click no longer toggles the selection (Ctrl + Drag rotates);
+  use Shift + Click.
+* Ctrl + Alt + Up normalizes the longest side ("Size" in PureRef);
+  normalizing the area is now called "Area" and has no shortcut.
+
+Fixed
+-----
+
+* The alternative mouse binding for moving the window had no effect.
+
+
 0.5.0 (2026-11-10)
 ==================
 

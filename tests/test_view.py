@@ -1452,13 +1452,17 @@ def test_mouse_press_sample_color_when_no_color(
 
 @patch('PyQt6.QtWidgets.QGraphicsView.mousePressEvent')
 @patch('myRef.view.BeeGraphicsView.cursor')
-def test_mouse_press_move_window(cursor_mock, mouse_event_mock, view):
+def test_mouse_press_move_window(cursor_mock, mouse_event_mock, view,
+                                 kbsettings):
+    # Bindings other than the right button move the window right away
+    action = kbsettings.MOUSE_ACTIONS['movewindow2']
+    action.set_button('Middle')
+    action.set_modifiers(['Shift'])
     event = MagicMock()
     cursor_mock.return_value = MagicMock(
         pos=MagicMock(return_value=QtCore.QPointF(10.0, 20.0)))
-    event.button.return_value = Qt.MouseButton.LeftButton
-    event.modifiers.return_value = (
-        Qt.KeyboardModifier.AltModifier | Qt.KeyboardModifier.ControlModifier)
+    event.button.return_value = Qt.MouseButton.MiddleButton
+    event.modifiers.return_value = Qt.KeyboardModifier.ShiftModifier
     view.mousePressEvent(event)
     assert view.active_mode is None
     assert view.movewin_active is True

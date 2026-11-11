@@ -307,6 +307,40 @@ class DragIntoGroupsWidget(SingleCheckboxGroup):
     KEY = 'Items/drag_into_groups'
 
 
+class EmbedLocalImagesWidget(SingleCheckboxGroup):
+    TITLE = 'Local Images:'
+    HELPTEXT = ('When turned off, images opened from disk are linked: '
+                'the bee file only stores their path.')
+    LABEL = 'Embed local images in save file'
+    KEY = 'Images/embed_local_images'
+
+
+class DefaultSamplingWidget(RadioGroup):
+    TITLE = 'Default Image Sampling:'
+    HELPTEXT = 'How newly added images are scaled (Alt+T per image)'
+    KEY = 'Images/default_sampling'
+    OPTIONS = (
+        ('bilinear', 'Bilinear', 'Smooth, but blurry when zoomed in'),
+        ('nearest', 'Nearest Neighbor', 'Crisp pixels, e.g. for pixel art'))
+
+
+class SlideshowIntervalWidget(IntegerGroup):
+    TITLE = 'Slideshow Interval:'
+    HELPTEXT = 'Seconds each image is shown in a slideshow (Alt+S)'
+    KEY = 'Images/slideshow_interval'
+    MIN = 1
+    MAX = 3600
+
+
+class RotationSnapWidget(IntegerGroup):
+    TITLE = 'Rotation Snap:'
+    HELPTEXT = ('Angle in degrees for snapped rotation '
+                '(Shift on the handles, Ctrl+Shift+Drag)')
+    KEY = 'Items/rotation_snap'
+    MIN = 1
+    MAX = 90
+
+
 class AllocationLimitWidget(IntegerGroup):
     TITLE = 'Maximum Image Size:'
     HELPTEXT = ('The maximum image size that can be loaded (in megabytes). '
@@ -565,6 +599,10 @@ class SettingsDialog(QtWidgets.QDialog):
         items_layout.addWidget(ArrangeDefaultWidget(), 1, 1)
         items_layout.addWidget(NormalizeSourceWidget(), 2, 0)
         items_layout.addWidget(DragIntoGroupsWidget(), 2, 1)
+        items_layout.addWidget(EmbedLocalImagesWidget(), 3, 0)
+        items_layout.addWidget(DefaultSamplingWidget(), 3, 1)
+        items_layout.addWidget(SlideshowIntervalWidget(), 4, 0)
+        items_layout.addWidget(RotationSnapWidget(), 4, 1)
         tabs.addTab(items, '')
 
         # Export

@@ -15,7 +15,7 @@ from myRef.actions.menu_structure import menu_structure
 from myRef.config import KeyboardSettings
 from myRef.config.controls import MouseConfigBase
 from myRef.config.settings import MOUSE_BINDING_BUTTONS
-from myRef.fileio.errors import IMG_LOADING_ERROR_MSG
+from myRef.fileio.errors import IMG_LOADING_ERROR_MSG, LINK_MISSING_MSG
 from myRef.i18n import _, es
 from myRef.widgets import settings as settings_widgets
 from myRef.widgets.controls.common import MouseControlsModelBase
@@ -81,6 +81,7 @@ def strings_in_definitions():
     strings.update(KeyboardShortcutsModel.HEADER)
     strings.update((
         IMG_LOADING_ERROR_MSG,
+        LINK_MISSING_MSG,
         constants.APPNAME_FULL,
         'Skip this file',
         'Skip all existing files',

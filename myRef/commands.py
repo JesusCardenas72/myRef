@@ -724,3 +724,127 @@ class ChangeGroupColor(ChangeGroupStyle):
 
     def __init__(self, groups, color):
         super().__init__(groups, text='Change group color', color=color)
+
+
+class ReplacePixmaps(QtGui.QUndoCommand):
+    """Replace the image data of images, e.g. with another file or a
+    downscaled/converted version.
+
+    Each change is a dict with the keys ``item``, ``pixmap`` and
+    optionally ``filename``, ``crop`` (``None`` resets the crop),
+    ``scale``, ``pos``, ``center`` (scene position the cropped center
+    is moved to), ``linked``, ``storage_format``. Keys that aren't
+    given keep their values.
+    """
+
+    def __init__(self, changes, text='Replace image'):
+        super().__init__(text)
+        self.changes = changes
+        self.old = []
+        for change in changes:
+            item = change['item']
+            self.old.append({
+                'item': item,
+                'pixmap': item.pixmap(),
+                'filename': item.filename,
+                'crop': QtCore.QRectF(item.crop),
+                'scale': item.scale(),
+                'pos': item.pos(),
+                'linked': getattr(item, 'linked', False),
+                'storage_format': getattr(item, 'storage_format', None),
+            })
+
+    @staticmethod
+    def apply(change):
+        item = change['item']
+        if 'pixmap' in change:
+            item.setPixmap(change['pixmap'])
+            item.pixmap_dirty = True
+        if 'filename' in change:
+            item.filename = change['filename']
+        if change.get('crop') is not None:
+            item.crop = QtCore.QRectF(change['crop'])
+        if 'scale' in change:
+            item.setScale(change['scale'])
+        if 'pos' in change:
+            item.setPos(change['pos'])
+        if 'linked' in change and change['linked'] != item.linked:
+            item.linked = change['linked']
+            # Image data needs to be written/removed on save:
+            item.pixmap_dirty = True
+        if 'storage_format' in change:
+            if change['storage_format'] != item.storage_format:
+                item.pixmap_dirty = True
+            item.storage_format = change['storage_format']
+        if change.get('center') is not None:
+            # Move the item so that its (cropped) center ends up at
+            # the given scene position
+            delta = change['center'] - item.mapToScene(item.crop.center())
+            item.setPos(item.pos()
+                        + hierarchy.scene_delta_to_parent(item, delta))
+        if hasattr(item, 'color_gamut'):
+            item.__dict__.pop('color_gamut', None)
+        item.update()
+
+    def redo(self):
+        for change in self.changes:
+            self.apply(change)
+
+    def undo(self):
+        for change in self.old:
+            self.apply(change)
+
+
+class SetCropView(QtGui.QUndoCommand):
+    """Change an image's crop together with its scale and position,
+    e.g. to pan or zoom the image inside its crop frame."""
+
+    def __init__(self, item, crop, scale, pos, ignore_first_redo=False,
+                 text='Change cropping'):
+        super().__init__(text)
+        self.ignore_first_redo = ignore_first_redo
+        self.item = item
+        self.new = (QtCore.QRectF(crop), scale, QtCore.QPointF(pos))
+        self.old = None
+
+    def set_old(self, crop, scale, pos):
+        self.old = (QtCore.QRectF(crop), scale, QtCore.QPointF(pos))
+
+    def apply(self, values):
+        crop, scale, pos = values
+        self.item.crop = QtCore.QRectF(crop)
+        self.item.setScale(scale)
+        self.item.setPos(pos)
+
+    def redo(self):
+        if self.old is None:
+            self.set_old(self.item.crop, self.item.scale(), self.item.pos())
+        if self.ignore_first_redo:
+            self.ignore_first_redo = False
+            return
+        self.apply(self.new)
+
+    def undo(self):
+        self.apply(self.old)
+
+
+class SwapItems(QtGui.QUndoCommand):
+    """Put new items in place of old ones (same parent), e.g. relinked
+    images in place of the error messages of missing images."""
+
+    def __init__(self, scene, pairs, text='Relink images'):
+        super().__init__(text)
+        self.scene = scene
+        self.pairs = [(old, new, old.parentItem()) for old, new in pairs]
+
+    def redo(self):
+        for old, new, parent in self.pairs:
+            selected = old.isSelected()
+            self.scene.removeItem(old)
+            add_to_parent(self.scene, new, parent)
+            new.setSelected(selected)
+
+    def undo(self):
+        for old, new, parent in self.pairs:
+            self.scene.removeItem(new)
+            add_to_parent(self.scene, old, parent)

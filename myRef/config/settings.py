@@ -181,6 +181,24 @@ class BeeSettings(QtCore.QSettings):
             'default': 'best',
             'validate': lambda x: x in ('png', 'jpg', 'best'),
         },
+        'Items/rotation_snap': {
+            'default': 45,
+            'cast': int,
+            'validate': lambda x: 1 <= x <= 90,
+        },
+        'Images/default_sampling': {
+            'default': 'bilinear',
+            'validate': lambda x: x in ('bilinear', 'nearest'),
+        },
+        'Images/slideshow_interval': {
+            'default': 10,
+            'cast': int,
+            'validate': lambda x: 1 <= x <= 3600,
+        },
+        'Images/embed_local_images': {
+            'default': True,
+            'cast': cast_bool,
+        },
         'Items/drag_into_groups': {
             'default': True,
             'cast': cast_bool,

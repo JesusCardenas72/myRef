@@ -14,12 +14,14 @@
 # along with BeeRef.  If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+import os.path
 
 from PyQt6 import QtCore
 
 from myRef import commands
+from myRef.config import BeeSettings
 from myRef.fileio.errors import BeeFileIOError
-from myRef.fileio.image import load_image
+from myRef.fileio.image import load_image_list
 from myRef.fileio.sql import SQLiteIO, is_bee_file
 from myRef.items import BeePixmapItem
 
@@ -57,22 +59,24 @@ def load_images(filenames, pos, scene, worker):
 
     errors = []
     items = []
+    link = not BeeSettings().valueOrDefault('Images/embed_local_images')
     worker.begin_processing.emit(len(filenames))
     for i, filename in enumerate(filenames):
         logger.info(f'Loading image from file {filename}')
-        img, filename = load_image(filename)
-        if img.isNull():
-            logger.info(f'Could not load file {filename}')
-            errors.append(filename)
-            worker.progress.emit(i)
-            continue
-
-        item = BeePixmapItem(img, filename)
-        item.set_pos_center(pos)
-        scene.add_item_later({'item': item, 'type': 'pixmap'}, selected=True)
-        items.append(item)
-        # Only after queuing the item, so that the progress handler
-        # in the main thread can add it:
+        loaded = load_image_list(filename, lambda: worker.canceled)
+        for img, name in loaded:
+            if img.isNull():
+                logger.info(f'Could not load file {name}')
+                errors.append(name)
+                continue
+            item = BeePixmapItem(img, name)
+            item.linked = link and os.path.isfile(name)
+            item.set_pos_center(pos)
+            scene.add_item_later({'item': item, 'type': 'pixmap'},
+                                 selected=True)
+            items.append(item)
+        # Only after queuing the items, so that the progress handler
+        # in the main thread can add them:
         worker.progress.emit(i)
         if worker.canceled:
             break

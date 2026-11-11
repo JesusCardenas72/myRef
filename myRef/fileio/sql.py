@@ -36,7 +36,8 @@ from PyQt6 import QtGui
 from myRef import constants
 from myRef.i18n import _
 from myRef.items import BeePixmapItem, BeeErrorItem
-from .errors import BeeFileIOError, IMG_LOADING_ERROR_MSG
+from .errors import BeeFileIOError, IMG_LOADING_ERROR_MSG, LINK_MISSING_MSG
+from .image import exif_rotated_image
 from .schema import SCHEMA, USER_VERSION, MIGRATIONS, APPLICATION_ID
 
 
@@ -256,11 +257,24 @@ class SQLiteIO:
 
             if data['type'] == BeePixmapItem.TYPE:
                 filename = data['data'].get('filename')
+                linked = data['data'].get('linked', False)
                 item = None
                 if row[11] is not None:
                     item = BeePixmapItem(QtGui.QImage())
                     item.pixmap_from_bytes(row[11])
-                if item is None or item.pixmap().isNull():
+                elif linked and filename and os.path.isfile(filename):
+                    img = exif_rotated_image(filename)
+                    if not img.isNull():
+                        item = BeePixmapItem(img)
+                if linked and (item is None or item.pixmap().isNull()):
+                    original = dict(data['data'])
+                    data['data'] = {
+                        'text': _(LINK_MISSING_MSG).format(filename=filename),
+                        'missing_link': True,
+                        'original': original,
+                    }
+                    data['type'] = BeeErrorItem.TYPE
+                elif item is None or item.pixmap().isNull():
                     data['data']['text'] = (
                         _('Image could not be loaded: {filename}\n').format(
                             filename=filename)
@@ -351,20 +365,44 @@ class SQLiteIO:
         item.save_id = self.cursor.lastrowid
 
         if hasattr(item, 'pixmap_to_bytes'):
-            pixmap, imgformat = item.pixmap_to_bytes()
-            name = item.get_filename_for_export(imgformat)
-            self.ex(
-                'INSERT INTO sqlar (item_id, name, mode, sz, data) '
-                'VALUES (?, ?, ?, ?, ?)',
-                (item.save_id, name, 0o644, len(pixmap), pixmap))
+            self.insert_pixmap(item)
         self.connection.commit()
+
+    @staticmethod
+    def stores_link_only(item):
+        """Whether only the path of the image is saved, not its data.
+
+        If the file has vanished, the image is embedded after all.
+        """
+        if not getattr(item, 'linked', False):
+            return False
+        if item.filename and os.path.isfile(item.filename):
+            return True
+        logger.debug(f'Linked file missing, embedding instead: {item}')
+        item.linked = False
+        return False
+
+    def insert_pixmap(self, item):
+        item.pixmap_dirty = False
+        if self.stores_link_only(item):
+            return
+        pixmap, imgformat = item.pixmap_to_bytes()
+        name = item.get_filename_for_export(imgformat)
+        self.ex(
+            'INSERT INTO sqlar (item_id, name, mode, sz, data) '
+            'VALUES (?, ?, ?, ?, ?)',
+            (item.save_id, name, 0o644, len(pixmap), pixmap))
 
     def update_item(self, item):
         """Update item data.
 
-        We only update the item data, not the pixmap data, as pixmap
-        data never changes and is also time-consuming to save.
+        The pixmap data is time-consuming to save, so it's only saved
+        again if it has changed (e.g. replaced or downscaled image) or
+        if the image has been switched between linked and embedded.
         """
+        if getattr(item, 'pixmap_dirty', False):
+            self.ex('DELETE FROM sqlar WHERE item_id=?', (item.save_id,))
+            self.insert_pixmap(item)
         self.ex(
             'UPDATE items SET x=?, y=?, z=?, scale=?, rotation=?, flip=?, '
             'data=?, parent_id=?, sort_order=? '

@@ -50,6 +50,7 @@ class MouseConfigBase:
         ('Not Configured', Qt.MouseButton.NoButton),
         ('Left', Qt.MouseButton.LeftButton),
         ('Middle',  Qt.MouseButton.MiddleButton),
+        ('Right',  Qt.MouseButton.RightButton),
     ))
 
     def __eq__(self, other):
@@ -290,19 +291,65 @@ class KeyboardSettings(QtCore.QSettings):
             id='movewindow1',
             group='movewindow',
             text='Move Window',
-            button='Left',
-            modifiers=('Ctrl', 'Alt'),
+            button='Right',
+            modifiers=('No Modifier',),
             invertible=False,
         ),
         MouseConfig(
             id='movewindow2',
-            group='movewindow (alternative)',
+            group='movewindow',
             text='Move Window',
             button='Not Configured',
             modifiers=(),
             invertible=False,
         ),
+        # Transforming the selection by dragging anywhere on an item
+        # (as opposed to using the handles):
+        MouseConfig(
+            id='rotate',
+            group='rotate',
+            text='Rotate Items',
+            button='Left',
+            modifiers=('Ctrl',),
+            invertible=False,
+        ),
+        MouseConfig(
+            id='rotate_snap',
+            group='rotate_snap',
+            text='Rotate Items (Snapped)',
+            button='Left',
+            modifiers=('Ctrl', 'Shift'),
+            invertible=False,
+        ),
+        MouseConfig(
+            id='scale',
+            group='scale',
+            text='Scale Items',
+            button='Left',
+            modifiers=('Ctrl', 'Alt'),
+            invertible=True,
+        ),
+        MouseConfig(
+            id='opacity',
+            group='opacity',
+            text='Change Opacity',
+            button='Left',
+            modifiers=('Ctrl', 'Alt', 'Shift'),
+            invertible=True,
+        ),
+        MouseConfig(
+            id='flip',
+            group='flip',
+            text='Flip Items',
+            button='Left',
+            modifiers=('Alt', 'Shift'),
+            invertible=False,
+        ),
     ])
+
+    #: Mouse actions that act on the items under the cursor
+    ITEM_MOUSE_ACTIONS = ('rotate', 'rotate_snap', 'scale', 'opacity',
+                          'flip')
 
     def __init__(self):
         settings_format = QtCore.QSettings.Format.IniFormat

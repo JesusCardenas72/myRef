@@ -110,11 +110,14 @@ def test_tablet_mode_is_off_by_default(view):
 
 
 @patch('PyQt6.QtWidgets.QGraphicsView.mousePressEvent')
-def test_right_button_does_nothing_when_tablet_mode_off(press_mock, view):
+def test_right_button_moves_window_when_tablet_mode_off(press_mock, view):
+    # As in PureRef, dragging with the right button moves the window;
+    # a click without dragging still opens the context menu
     view.mousePressEvent(mouse_event())
     assert view.active_mode is None
-    assert view.context_menu_blocked is False
-    press_mock.assert_called_once()
+    assert view.movewin_pending is not None
+    assert view.context_menu_blocked is True
+    press_mock.assert_not_called()
 
 
 @patch('PyQt6.QtWidgets.QGraphicsView.mousePressEvent')
@@ -158,7 +161,9 @@ def test_not_configured_binding_is_ignored(press_mock, tablet_view, settings):
     settings.setValue('TabletMode/pan', 'Not Configured')
     tablet_view.mousePressEvent(mouse_event())
     assert tablet_view.active_mode is None
-    press_mock.assert_called_once()
+    # The regular binding of the right button applies instead
+    assert tablet_view.movewin_pending is not None
+    press_mock.assert_not_called()
 
 
 def test_pan_ignores_jitter_and_then_follows_drag(tablet_view):

@@ -23,3 +23,8 @@ class BeeFileIOError(Exception):
     def __init__(self, msg, filename):
         self.msg = msg
         self.filename = filename
+
+
+LINK_MISSING_MSG = (
+    'Linked image not found: {filename}\n'
+    'Double-click to relink it (or Ctrl+Alt+Shift+R).')

@@ -596,6 +596,15 @@ def test_get_rotate_delta_snaps(view, item):
     item.event_anchor = QtCore.QPointF(10, 20)
     item.rotate_start_angle = -3
     item.rotate_orig_degrees = 5
+    # 5 - 42 = -37 snaps to -45 (45 degree steps by default)
+    assert item.get_rotate_delta(QtCore.QPointF(15, 25), snap=True) == -50
+
+
+def test_get_rotate_delta_snaps_to_setting(view, item, settings):
+    settings.setValue('Items/rotation_snap', 15)
+    item.event_anchor = QtCore.QPointF(10, 20)
+    item.rotate_start_angle = -3
+    item.rotate_orig_degrees = 5
     assert item.get_rotate_delta(QtCore.QPointF(15, 25), snap=True) == -35
 
 

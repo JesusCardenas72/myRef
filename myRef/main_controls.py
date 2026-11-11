@@ -42,6 +42,9 @@ class MainControlsMixin:
             self.control_target.on_context_menu)
         self.setAcceptDrops(True)
         self.movewin_active = False
+        #: Global position of a right button press that starts moving
+        #: the window once the mouse is dragged
+        self.movewin_pending = None
 
     def on_action_movewin_mode(self):
         if self.movewin_active:
@@ -122,14 +125,31 @@ class MainControlsMixin:
             event.accept()
             return True
 
-        action, inverted =\
-            self.control_target.keyboard_settings.mouse_action_for_event(event)
+        action, inverted = self.control_target.mouse_action_for_event(event)
         if action == 'movewindow':
+            if event.button() == Qt.MouseButton.RightButton:
+                # Only a drag moves the window; a click opens the menu
+                self.control_target.start_right_gesture(event)
+                self.movewin_pending = QtCore.QPointF(
+                    self.mapToGlobal(event.position()))
+                event.accept()
+                return True
             self.enter_movewin_mode()
             event.accept()
             return True
 
     def mouseMoveEventMainControls(self, event):
+        if self.movewin_pending is not None:
+            if self.control_target.is_right_click_pending(event.position()):
+                event.accept()
+                return True
+            start = self.movewin_pending
+            self.movewin_pending = None
+            self.enter_movewin_mode()
+            if not self.movewin_active:
+                # The window is locked
+                return True
+            self.event_start = start
         if self.movewin_active:
             pos = self.mapToGlobal(event.position())
             delta = pos - self.event_start
@@ -140,6 +160,11 @@ class MainControlsMixin:
             return True
 
     def mouseReleaseEventMainControls(self, event):
+        if self.movewin_pending is not None:
+            self.movewin_pending = None
+            self.control_target.end_right_gesture(event)
+            event.accept()
+            return True
         if self.movewin_active:
             self.exit_movewin_mode()
             event.accept()

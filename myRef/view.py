@@ -18,7 +18,6 @@ import logging
 import os
 import os.path
 import shutil
-import sys
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtCore import Qt
@@ -26,6 +25,7 @@ from PyQt6.QtCore import Qt
 from myRef.actions import ActionsMixin, actions
 from myRef.actions.actions import CONTEXT_DRAW, CONTEXT_GLOBAL
 from myRef.canvas import CanvasMixin
+from myRef.drag_tools import DragToolsMixin
 from myRef import commands
 from myRef.config import (
     BeeSettings,
@@ -40,6 +40,11 @@ from myRef.fileio.errors import IMG_LOADING_ERROR_MSG
 from myRef.fileio.export import exporter_registry, ImagesToDirectoryExporter
 from myRef.i18n import _
 from myRef import hierarchy
+from myRef.image_tools import (
+    ImageToolsMixin,
+    is_web_url,
+    reveal_in_file_browser,
+)
 from myRef import textformat
 from myRef import widgets
 from myRef.items import (
@@ -57,6 +62,8 @@ logger = logging.getLogger(__name__)
 
 class BeeGraphicsView(MainControlsMixin,
                       CanvasMixin,
+                      ImageToolsMixin,
+                      DragToolsMixin,
                       QtWidgets.QGraphicsView,
                       ActionsMixin,
                       WindowModesMixin):
@@ -108,6 +115,8 @@ class BeeGraphicsView(MainControlsMixin,
         self.lock_button = widgets.view_buttons.LockButton(self)
 
         # Context menu and actions
+        self.init_image_tools()
+        self.init_drag_tools()
         self.init_window_mode_state()
         self.init_canvas_state()
         self.build_menu_and_actions()
@@ -148,6 +157,7 @@ class BeeGraphicsView(MainControlsMixin,
             self.update_menu_and_actions()
 
     def cancel_active_modes(self):
+        self.cancel_drag_tools()
         self.scene.cancel_active_modes()
         self.cancel_sample_color_mode()
         self.active_mode = None
@@ -276,6 +286,8 @@ class BeeGraphicsView(MainControlsMixin,
 
     def clear_scene(self):
         logging.debug('Clearing scene...')
+        self.stop_slideshow()
+        self.focus_item = None
         self.exit_draw_mode(finish=False)
         self.cancel_active_modes()
         self.scene.clear()
@@ -429,6 +441,10 @@ class BeeGraphicsView(MainControlsMixin,
         self.scene.select_all_items()
 
     def on_action_deselect_all(self):
+        if self.is_slideshow_running():
+            # Esc first ends the slideshow
+            self.stop_slideshow()
+            return
         self.scene.deselect_all_items()
 
     def on_action_delete_items(self):
@@ -477,6 +493,12 @@ class BeeGraphicsView(MainControlsMixin,
 
     def on_action_normalize_scale(self):
         self.scene.normalize_scale()
+
+    def on_action_arrange_square_name(self):
+        self.scene.arrange_square(order='name')
+
+    def on_action_arrange_square_order(self):
+        self.scene.arrange_square(order='order')
 
     def on_action_arrange_square_addition(self):
         self.scene.arrange_square(order='addition')
@@ -1120,17 +1142,7 @@ class BeeGraphicsView(MainControlsMixin,
             widgets.BeeNotification(
                 self, _('The scene has not been saved yet'))
             return
-        path = os.path.abspath(self.filename)
-        logger.debug(f'Showing in file browser: {path}')
-        if sys.platform == 'win32':
-            # Opens the folder with the file selected
-            QtCore.QProcess.startDetached(
-                'explorer', ['/select,', os.path.normpath(path)])
-        elif sys.platform == 'darwin':
-            QtCore.QProcess.startDetached('open', ['-R', path])
-        else:
-            QtGui.QDesktopServices.openUrl(
-                QtCore.QUrl.fromLocalFile(os.path.dirname(path)))
+        reveal_in_file_browser(self.filename)
 
     def open_from_file(self, filename):
         logger.info(f'Opening file {filename}')
@@ -1498,7 +1510,16 @@ class BeeGraphicsView(MainControlsMixin,
                 # This is the first image in the scene
                 self.on_action_fit_scene()
             return
+        if mimedata and mimedata.hasUrls():
+            # Files copied in the file browser, or links
+            self.do_insert_images(mimedata.urls(), self.mapFromScene(pos))
+            return
         text = clipboard.text()
+        if text and is_web_url(text.strip()) and len(text.split()) == 1:
+            # The URL of an image or of a web page with images
+            self.do_insert_images(
+                [QtCore.QUrl(text.strip())], self.mapFromScene(pos))
+            return
         if text:
             item = BeeTextItem(text)
             item.setScale(1 / self.get_scale())
@@ -1636,6 +1657,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.reset_previous_transform()
 
     def wheelEvent(self, event):
+        self.hide_unlock_button()
         action, inverted\
             = self.keyboard_settings.mousewheel_action_for_event(event)
 
@@ -1673,9 +1695,25 @@ class BeeGraphicsView(MainControlsMixin,
                     return action, inverted
         action, inverted = self.keyboard_settings.mouse_action_for_event(
             event)
+        if action == 'movewindow' and self.scene.items_locked:
+            # While locked, the right mouse button zooms
+            locked_action, locked_inverted = (
+                self.locked_mouse_action_for_event(event))
+            if locked_action is not None:
+                return locked_action, locked_inverted
+        if (action == 'movewindow'
+                and event.button() == Qt.MouseButton.RightButton
+                and self.window_fills_screen()):
+            # A maximized window can't be moved; pan instead
+            return 'pan', False
         if action is None and self.scene.items_locked:
             action, inverted = self.locked_mouse_action_for_event(event)
         return action, inverted
+
+    def window_fills_screen(self):
+        window = self.window()
+        return bool(window and (window.isMaximized()
+                                or window.isFullScreen()))
 
     def locked_mouse_action_for_event(self, event):
         """While items are locked, the left and right mouse buttons are
@@ -1731,6 +1769,10 @@ class BeeGraphicsView(MainControlsMixin,
             self.on_context_menu(menu_pos)
 
     def mousePressEvent(self, event):
+        if (self.is_slideshow_running()
+                and event.button() != Qt.MouseButton.RightButton):
+            self.stop_slideshow()
+        self.hide_unlock_button()
         if self.mousePressEventMainControls(event):
             return
 
@@ -1783,6 +1825,10 @@ class BeeGraphicsView(MainControlsMixin,
             event.accept()
             return
 
+        if self.drag_tools_press(event, action, inverted):
+            event.accept()
+            return
+
         if self.draw_session:
             if event.button() == Qt.MouseButton.LeftButton:
                 self.draw_session.press(
@@ -1804,6 +1850,9 @@ class BeeGraphicsView(MainControlsMixin,
     def mouseMoveEvent(self, event):
         if self.is_right_click_pending(event.position()):
             event.accept()
+            return
+
+        if self.drag_tools_move(event):
             return
 
         if self.active_mode == self.PAN_MODE:
@@ -1845,6 +1894,8 @@ class BeeGraphicsView(MainControlsMixin,
 
     def mouseReleaseEvent(self, event):
         self.end_right_gesture(event)
+        if self.drag_tools_release(event):
+            return
         if self.active_mode == self.PAN_MODE:
             logger.trace('End pan')
             self.viewport().unsetCursor()
@@ -1884,12 +1935,21 @@ class BeeGraphicsView(MainControlsMixin,
         # editing text it must reach keyPressEvent instead.
         if (event.type() == QtCore.QEvent.Type.ShortcutOverride
                 and event.key() == Qt.Key.Key_Escape
-                and (self.draw_session or actions.active_context != 'global')):
+                and (self.draw_session
+                     or actions.actions.active_context != 'global')):
+            event.accept()
+            return True
+        # Return confirms drawing and cropping instead of triggering
+        # "Edit item"
+        if (event.type() == QtCore.QEvent.Type.ShortcutOverride
+                and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                and (self.draw_session or self.scene.crop_item)):
             event.accept()
             return True
         return super().event(event)
 
     def keyPressEvent(self, event):
+        self.drag_tools_key_press(event)
         if self.keyPressEventMainControls(event):
             return
         if self.active_mode == self.SAMPLE_COLOR_MODE:
@@ -1902,6 +1962,14 @@ class BeeGraphicsView(MainControlsMixin,
             event.accept()
             return
         super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        self.drag_tools_key_release(event)
+        super().keyReleaseEvent(event)
+
+    def focusOutEvent(self, event):
+        self.held_keys.clear()
+        super().focusOutEvent(event)
 
 
 def _scoped_callback(method, kwargs):

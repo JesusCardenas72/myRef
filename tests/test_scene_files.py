@@ -34,7 +34,7 @@ def test_show_in_file_browser_unsaved(notify_mock, view):
     notify_mock.assert_called_once()
 
 
-@patch('myRef.view.sys.platform', 'win32')
+@patch('myRef.image_tools.sys.platform', 'win32')
 def test_show_in_file_browser_windows(view, tmpdir):
     view.filename = os.path.join(tmpdir, 'test.bee')
     with patch('PyQt6.QtCore.QProcess.startDetached') as proc_mock:
@@ -43,7 +43,7 @@ def test_show_in_file_browser_windows(view, tmpdir):
         'explorer', ['/select,', os.path.normpath(view.filename)])
 
 
-@patch('myRef.view.sys.platform', 'darwin')
+@patch('myRef.image_tools.sys.platform', 'darwin')
 def test_show_in_file_browser_mac(view, tmpdir):
     view.filename = os.path.join(tmpdir, 'test.bee')
     with patch('PyQt6.QtCore.QProcess.startDetached') as proc_mock:
@@ -52,7 +52,7 @@ def test_show_in_file_browser_mac(view, tmpdir):
         'open', ['-R', os.path.abspath(view.filename)])
 
 
-@patch('myRef.view.sys.platform', 'linux')
+@patch('myRef.image_tools.sys.platform', 'linux')
 def test_show_in_file_browser_linux(view, tmpdir):
     view.filename = os.path.join(tmpdir, 'test.bee')
     with patch('PyQt6.QtGui.QDesktopServices.openUrl') as open_mock:
