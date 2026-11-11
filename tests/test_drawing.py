@@ -1,3 +1,4 @@
+import math
 from unittest.mock import MagicMock, patch
 from xml.etree import ElementTree as ET
 
@@ -289,6 +290,104 @@ def test_tool_actions(view):
     reset_tools()
 
 
+def test_polyline_shape_path():
+    path = drawing.shape_path(
+        drawing.make_shape('polyline', [(0, 0), (10, 0), (10, 10)]))
+    assert path.elementCount() == 3
+
+
+def test_polyline_click_by_click_with_one_undo_step(view):
+    reset_tools()
+    view.enter_draw_mode()
+    view.on_action_draw_tool_polyline()
+    session = view.draw_session
+    session.press(P(0, 0))
+    session.move(P(20, 0))
+    session.press(P(20, 0))
+    session.move(P(20, 20))
+    session.press(P(20, 20))
+    session.move(P(30, 30))
+    session.release(P(30, 30))
+    assert session.active
+    view.exit_draw_mode()
+    items = list(view.scene.items_by_type('drawing'))
+    assert len(items) == 1
+    assert len(items[0].shapes) == 1
+    shape = items[0].shapes[0]
+    assert shape['type'] == 'polyline'
+    assert shape['points'] == [[0, 0], [20, 0], [20, 20]]
+    view.undo_stack.undo()
+    assert list(view.scene.items_by_type('drawing')) == []
+
+
+def test_polyline_rubber_band_is_shift_constrained(view):
+    reset_tools()
+    view.enter_draw_mode()
+    view.on_action_draw_tool_polyline()
+    session = view.draw_session
+    session.press(P(0, 0))
+    session.move(P(40, 10), SHIFT)
+    # Snapped to 0 degrees, keeping the length of the rubber band
+    x, y = session.polyline['points'][-1]
+    assert y == 0
+    assert abs(x - math.hypot(40, 10)) < 1e-6
+    view.exit_draw_mode()
+
+
+def test_polyline_double_click_ends_it(view):
+    reset_tools()
+    view.enter_draw_mode()
+    view.on_action_draw_tool_polyline()
+    session = view.draw_session
+    session.press(P(0, 0))
+    session.move(P(20, 0))
+    session.press(P(20, 0))
+    session.move(P(20, 20))
+    # The second click of a double click lands on the same vertex
+    session.press(P(20, 20))
+    session.finish_polyline()
+    assert session.polyline is None
+    assert not session.active
+    items = list(view.scene.items_by_type('drawing'))
+    assert items[0].shapes[0]['points'] == [[0, 0], [20, 0], [20, 20]]
+    view.exit_draw_mode()
+
+
+def test_polyline_single_click_creates_nothing(view):
+    reset_tools()
+    view.enter_draw_mode()
+    view.on_action_draw_tool_polyline()
+    view.draw_session.press(P(5, 5))
+    view.draw_session.move(P(5, 5))
+    view.exit_draw_mode()
+    assert list(view.scene.items_by_type('drawing')) == []
+
+
+def test_polyline_commits_when_switching_tool(view):
+    reset_tools()
+    view.enter_draw_mode()
+    view.on_action_draw_tool_polyline()
+    session = view.draw_session
+    session.press(P(0, 0))
+    session.move(P(20, 0))
+    session.press(P(20, 0))
+    session.set_tool('line')
+    assert session.polyline is None
+    items = list(view.scene.items_by_type('drawing'))
+    assert items[0].shapes[0]['points'] == [[0, 0], [20, 0]]
+    view.exit_draw_mode()
+
+
+def test_tool_buttons_have_vector_icons(view):
+    view.enter_draw_mode()
+    toolbar = view.draw_toolbar
+    for tool, button in toolbar.tool_buttons.items():
+        assert not button.icon().isNull(), tool
+        assert button.text() == ''
+        assert button.iconSize().width() == draw_widgets.TOOL_ICON_SIZE
+    view.exit_draw_mode()
+
+
 def test_tool_actions_outside_draw_mode_do_nothing(view):
     reset_tools()
     view.on_action_draw_tool_eraser()
@@ -446,6 +545,23 @@ def test_toolbar_controls_change_tool_settings(view):
     assert draw_widgets.tool_settings['color'] == '#ff0000ff'
     toolbar.done_button.click()
     assert view.draw_session is None
+    reset_tools()
+
+
+def test_toolbar_transparency_changes_color_alpha(view):
+    reset_tools()
+    view.enter_draw_mode()
+    toolbar = view.draw_toolbar
+    draw_widgets.tool_settings['color'] = '#ffff0000'
+    toolbar.update_state()
+    assert toolbar.transparency_box.value() == 0
+    toolbar.transparency_box.setValue(50)
+    assert QtGui.QColor(draw_widgets.tool_settings['color']).alpha() == 128
+    assert QtGui.QColor(draw_widgets.tool_settings['color']).red() == 255
+    with patch('PyQt6.QtWidgets.QColorDialog.getColor',
+               return_value=QtGui.QColor(0, 0, 255, 51)):
+        toolbar.on_color()
+    assert toolbar.transparency_box.value() == 80
     reset_tools()
 
 

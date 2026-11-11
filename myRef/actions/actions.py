@@ -1142,6 +1142,13 @@ actions = BeeActionList([
         context=CONTEXT_DRAW,
     ),
     Action(
+        id='draw_tool_polyline',
+        text='&Polyline',
+        shortcuts=['N'],
+        callback='on_action_draw_tool_polyline',
+        context=CONTEXT_DRAW,
+    ),
+    Action(
         id='draw_tool_arrow',
         text='&Arrow',
         shortcuts=['A'],

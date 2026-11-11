@@ -266,6 +266,7 @@ def test_group_opacity_dialog(view):
 def test_group_style_dialog_preview_and_single_undo_step(view):
     a = make_image(view)
     group = make_group(view, [a])
+    before = dict(group.style)
     count = view.undo_stack.count()
     dialog = GroupStyleDialog(view, [group], view.undo_stack, show=False)
     dialog.border_width_input.setValue(9)
@@ -282,7 +283,7 @@ def test_group_style_dialog_preview_and_single_undo_step(view):
     assert group.color == '#40ff0000'
     assert group.opacity() == pytest.approx(0.5)
     view.undo_stack.undo()
-    assert group.style == group_style.default_style()
+    assert group.style == before
     assert group.color is None
     assert group.opacity() == 1
 
@@ -290,12 +291,13 @@ def test_group_style_dialog_preview_and_single_undo_step(view):
 def test_group_style_dialog_cancel_restores(view):
     a = make_image(view)
     group = make_group(view, [a])
+    before = dict(group.style)
     count = view.undo_stack.count()
     dialog = GroupStyleDialog(view, [group], view.undo_stack, show=False)
     dialog.title_size_input.setValue(40)
     assert group.style['title_size'] == 40
     dialog.reject()
-    assert group.style == group_style.default_style()
+    assert group.style == before
     assert view.undo_stack.count() == count
 
 
@@ -499,6 +501,7 @@ def test_click_on_title_activates_it_with_panel(view):
 def test_title_panel_changes_text_undoable(view):
     a = make_image(view)
     group = make_group(view, [a])
+    size = group.style['title_size']
     view.edit_group_title_style(group)
     panel = view.title_panel
     panel.bold_input.setChecked(True)
@@ -508,12 +511,13 @@ def test_title_panel_changes_text_undoable(view):
     assert group.style['title_bold']
     view.undo_stack.undo()
     assert not group.style['title_bold']
-    assert group.style['title_size'] == 14
+    assert group.style['title_size'] == size
 
 
 def test_resize_title_with_handle(view):
     a = make_image(view)
     group = make_group(view, [a])
+    group.set_style(title_size=14)
     scene = view.scene
     pos = group.mapToScene(group.title_text_rect().center())
     scene.mousePressEvent(mouse_event((pos.x(), pos.y())))
@@ -530,6 +534,29 @@ def test_resize_title_with_handle(view):
     assert scene.active_mode is None
     view.undo_stack.undo()
     assert group.style['title_size'] == 14
+
+
+def test_new_group_title_readable_when_zoomed_out(view):
+    view.scale(0.1, 0.1)
+    a = make_image(view)
+    group = make_group(view, [a])
+    assert group.style['title_size'] == group.TITLE_PIXELS * 10
+
+
+def test_new_group_title_not_smaller_than_default_when_zoomed_in(view):
+    view.scale(10, 10)
+    a = make_image(view)
+    group = make_group(view, [a])
+    assert group.style['title_size'] == 14
+
+
+def test_gear_has_fixed_screen_size(view):
+    a = make_image(view, w=5000, h=5000)
+    group = make_group(view, [a])
+    view.scale(0.1, 0.1)
+    assert group.gear_size() == pytest.approx(group.GEAR_PIXELS * 10)
+    view.scale(10, 10)
+    assert group.gear_size() == pytest.approx(group.GEAR_PIXELS)
 
 
 def test_title_panel_changes_show_in_editor(view):

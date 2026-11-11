@@ -25,50 +25,11 @@ from PyQt6.QtCore import Qt
 from myRef import commands
 from myRef import group_style
 from myRef.i18n import _
+from myRef.widgets.color_field import ColorField
 from myRef.widgets.dragspin import DragDoubleSpinBox
 
 
 logger = logging.getLogger(__name__)
-
-
-class ColorButton(QtWidgets.QToolButton):
-    """Shows a color; a click opens a color dialog."""
-
-    def __init__(self, color, title, parent=None):
-        super().__init__(parent)
-        self.title = title
-        self.color = QtGui.QColor(color)
-        self.callback = None
-        self.setMinimumWidth(60)
-        self.update_icon()
-        self.clicked.connect(self.choose_color)
-
-    def update_icon(self):
-        pixmap = QtGui.QPixmap(40, 16)
-        pixmap.fill(Qt.GlobalColor.white)
-        painter = QtGui.QPainter(pixmap)
-        # Checkerboard so that transparency is visible
-        for x in range(0, 40, 8):
-            for y in range(0, 16, 8):
-                if (x + y) // 8 % 2:
-                    painter.fillRect(x, y, 8, 8, Qt.GlobalColor.lightGray)
-        painter.fillRect(pixmap.rect(), self.color)
-        painter.end()
-        self.setIcon(QtGui.QIcon(pixmap))
-        self.setIconSize(pixmap.size())
-
-    def set_color(self, color):
-        self.color = QtGui.QColor(color)
-        self.update_icon()
-        if self.callback:
-            self.callback(self.color.name(QtGui.QColor.NameFormat.HexArgb))
-
-    def choose_color(self):
-        color = QtWidgets.QColorDialog.getColor(
-            self.color, self, self.title,
-            QtWidgets.QColorDialog.ColorDialogOption.ShowAlphaChannel)
-        if color.isValid():
-            self.set_color(color)
 
 
 class GroupTitleEditor(QtWidgets.QLineEdit):
@@ -235,7 +196,7 @@ class GroupTitlePanel(QtWidgets.QDialog):
         row.addWidget(self.italic_input)
         layout.addRow(row)
 
-        self.color_input = ColorButton(
+        self.color_input = ColorField(
             style['title_color'], _('Title Color'), self)
         self.color_input.callback = partial(self.set_value, 'title_color')
         layout.addRow(_('Title color:'), self.color_input)
@@ -329,12 +290,12 @@ class GroupStyleDialog(QtWidgets.QDialog):
             self.name_input.textChanged.connect(self.on_name_changed)
             layout.addRow(_('Title:'), self.name_input)
 
-        self.background_input = ColorButton(
+        self.background_input = ColorField(
             groups[0].background_color(), _('Background Color'), self)
         self.background_input.callback = partial(self.set_value, 'color')
         layout.addRow(_('Background color:'), self.background_input)
 
-        self.border_color_input = ColorButton(
+        self.border_color_input = ColorField(
             style['border_color'], _('Border Color'), self)
         self.border_color_input.callback = partial(
             self.set_value, 'border_color')
@@ -398,7 +359,7 @@ class GroupStyleDialog(QtWidgets.QDialog):
         layout.addRow(_('Wave length:'), self.wavelength_input)
         self.update_wave_inputs()
 
-        self.title_color_input = ColorButton(
+        self.title_color_input = ColorField(
             style['title_color'], _('Title Color'), self)
         self.title_color_input.callback = partial(
             self.set_value, 'title_color')
