@@ -523,13 +523,20 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             self.select_items(groups)
 
     def ungroup_selection(self):
-        """Dissolve the selected groups."""
+        """Dissolve the selected groups.
+
+        If no group is selected, the selected items inside a group are
+        taken out of it instead: they go one level up, into the group
+        that contains their group (or the top level).
+        """
 
         self.cancel_active_modes()
         groups = [item for item in self.selected_top_items()
                   if isinstance(item, BeeGroupItem)]
         if groups:
             self.undo_stack.push(commands.UngroupItems(self, groups))
+        else:
+            self.remove_selection_from_group()
 
     def parent_selection(self):
         """Make the selected items children of the item that has been

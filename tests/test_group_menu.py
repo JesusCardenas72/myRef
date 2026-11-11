@@ -166,6 +166,27 @@ def test_remove_all_children_deletes_group(view):
     assert a.parentItem() is group and b.parentItem() is group
 
 
+def test_ungroup_on_image_in_group_takes_it_out(view):
+    a = make_image(view)
+    b = make_image(view, 200)
+    group = make_group(view, [a, b])
+    view.scene.select_items([a])
+    view.scene.ungroup_selection()
+    assert a.parentItem() is None
+    assert b.parentItem() is group
+    view.undo_stack.undo()
+    assert a.parentItem() is group
+
+
+def test_ungroup_on_image_in_subgroup_goes_to_outer_group(view):
+    a, b, c, inner, outer = make_nested(view)
+    view.scene.select_items([a])
+    view.scene.ungroup_selection()
+    assert a.parentItem() is outer
+    assert b.parentItem() is inner
+    assert inner.scene() is view.scene
+
+
 def test_enter_and_exit_group(view):
     a = make_image(view)
     b = make_image(view, 200)
