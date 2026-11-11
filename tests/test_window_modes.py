@@ -179,7 +179,7 @@ def test_opacity_decrease_increase(view, settings):
 def test_opacity_has_minimum(view, settings):
     for i in range(20):
         view.on_action_opacity_decrease()
-    assert settings.valueOrDefault('Window/opacity') == 10
+    assert settings.valueOrDefault('Window/opacity') == 5
 
 
 def test_opacity_reset(view, settings):

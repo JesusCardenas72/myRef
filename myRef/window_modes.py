@@ -46,7 +46,7 @@ REMEMBERED_MODES = ('always_on_top', 'always_on_bottom', 'click_through')
 
 QWIDGETSIZE_MAX = 16777215
 OPACITY_STEP = 10
-OPACITY_MIN = 10
+OPACITY_MIN = 5
 
 
 class WindowModesMixin:
@@ -149,18 +149,30 @@ class WindowModesMixin:
     def window_opacity_percent(self):
         return self.settings.valueOrDefault('Window/opacity')
 
-    def apply_window_opacity(self):
-        opacity = self.window_opacity_percent() / 100
+    def apply_window_opacity(self, percent=None):
+        if percent is None:
+            percent = self.window_opacity_percent()
+        opacity = percent / 100
         self.parent.setWindowOpacity(opacity)
         if self.click_through and window.IS_WINDOWS:
             window.set_click_through(self.parent, True, opacity)
+        control = getattr(self, 'opacity_control', None)
+        if control:
+            control.on_opacity_changed()
 
-    def set_window_opacity(self, percent):
+    def preview_window_opacity(self, percent):
+        """Shows the window with the given opacity without storing it,
+        e.g. while the opacity slider is being dragged."""
+
+        self.apply_window_opacity(max(OPACITY_MIN, min(100, percent)))
+
+    def set_window_opacity(self, percent, notify=True):
         percent = max(OPACITY_MIN, min(100, percent))
         self.settings.setValue('Window/opacity', percent)
         self.apply_window_opacity()
-        self.notify_window_mode(
-            _('Opacity: {percent} %').format(percent=percent))
+        if notify:
+            self.notify_window_mode(
+                _('Opacity: {percent} %').format(percent=percent))
 
     def on_action_opacity_increase(self):
         self.set_window_opacity(self.window_opacity_percent() + OPACITY_STEP)

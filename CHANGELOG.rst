@@ -1,3 +1,20 @@
+0.7.0 (2026-11-11)
+==================
+
+Added
+-----
+
+* Window opacity control in the top right corner of the view. Hover the
+  icon to unfold a vertical slider from 100 % (top) to 5 % (bottom). Drag
+  or scroll to change the opacity of the whole window; it folds up again
+  when the mouse leaves. Moves next to the lock icon if both are in the
+  top right corner.
+
+Changed
+-------
+
+* The minimum window opacity is now 5 % (was 10 %).
+
 0.6.0 (2026-11-11)
 ==================
 

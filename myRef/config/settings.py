@@ -253,7 +253,7 @@ class BeeSettings(QtCore.QSettings):
         'Window/opacity': {
             'default': 100,
             'cast': int,
-            'validate': lambda x: 10 <= x <= 100,
+            'validate': lambda x: 5 <= x <= 100,
             'post_save_callback': notify_view_settings_changed,
         },
         'Window/startup_mode': {

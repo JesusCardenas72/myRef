@@ -448,7 +448,7 @@ class WindowOpacityWidget(IntegerGroup):
     HELPTEXT = ('How opaque the whole window is. Can also be changed in '
                 'View > Window.')
     KEY = 'Window/opacity'
-    MIN = 10
+    MIN = 5
     MAX = 100
     SUFFIX = ' %'
 

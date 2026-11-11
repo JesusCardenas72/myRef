@@ -113,6 +113,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.scene.cursor_cleared.connect(self.on_cursor_cleared)
         self.setScene(self.scene)
         self.lock_button = widgets.view_buttons.LockButton(self)
+        self.opacity_control = None
 
         # Context menu and actions
         self.init_image_tools()
@@ -125,6 +126,9 @@ class BeeGraphicsView(MainControlsMixin,
             actions.actions['lock_items'].qaction.setChecked)
         self.control_target = self
         self.init_main_controls(main_window=parent)
+        self.opacity_control = widgets.view_buttons.WindowOpacityControl(self)
+        self.opacity_control.update_position()
+        self.opacity_control.show()
         settings_events.language_changed.connect(self.on_language_changed)
         settings_events.view_settings_changed.connect(
             self.on_view_settings_changed)
@@ -229,6 +233,8 @@ class BeeGraphicsView(MainControlsMixin,
 
     def on_view_settings_changed(self):
         self.lock_button.apply_settings()
+        if self.opacity_control:
+            self.opacity_control.update_position()
         self.update_titlebar_button()
         self.on_window_settings_changed()
         self.on_canvas_settings_changed()
@@ -1928,6 +1934,8 @@ class BeeGraphicsView(MainControlsMixin,
         if self.title_editor is not None:
             self.title_editor.update_geometry()
         self.lock_button.update_position()
+        if self.opacity_control:
+            self.opacity_control.update_position()
         if self.draw_toolbar and self.draw_toolbar.isVisible():
             self.draw_toolbar.update_position()
 

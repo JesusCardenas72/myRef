@@ -264,6 +264,7 @@ TRANSLATIONS = {
     '&Maximize': '&Maximizar',
     'Show Title Bar on &Hover': 'Barra de &título al pasar el ratón',
     'Opacity: {percent} %': 'Opacidad: {percent} %',
+    'Window opacity: {percent} %': 'Opacidad de la ventana: {percent} %',
     'Always on bottom': 'Siempre debajo',
     'Always on top': 'Siempre encima',
     'Normal window': 'Ventana normal',

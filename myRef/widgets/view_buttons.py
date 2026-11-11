@@ -308,3 +308,216 @@ class TitleBarButton(QtWidgets.QAbstractButton):
         painter.drawEllipse(
             QtCore.QPointF(tablet.center().x(), tablet.bottom() - 2.6),
             0.9, 0.9)
+
+
+class WindowOpacityControl(QtWidgets.QWidget):
+    """An icon in the top right corner of the view for changing the
+    opacity of the whole window.
+
+    Hovering the icon unfolds a vertical slider below it: The top of
+    the slider is full opacity, the bottom ``MIN_PERCENT``. The slider
+    folds up again once the mouse has left both the icon and the slider.
+    """
+
+    MARGIN = 10  # Distance from the edges of the view
+    GAP = 6  # Distance from the lock icon when it's in the same corner
+    ICON_SIZE = 24
+    TRACK_LENGTH = 150
+    TRACK_PADDING = 10  # Space at both ends of the track for the handle
+    MIN_PERCENT = 5
+    MAX_PERCENT = 100
+    WHEEL_STEP = 5
+    COLLAPSE_DELAY = 300  # ms
+    BACKDROP_COLOR = QtGui.QColor(0, 0, 0, 130)
+    ICON_COLOR = QtGui.QColor(230, 230, 230)
+    TRACK_COLOR = QtGui.QColor(230, 230, 230, 140)
+    HANDLE_COLOR = QtGui.QColor(*COLORS['Scene:Selection'])
+
+    def __init__(self, view):
+        super().__init__(view)
+        self.view = view
+        self.expanded = False
+        self.dragging = False
+        self.preview_percent = None  # While dragging, before it's saved
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self.collapse_timer = QtCore.QTimer(self)
+        self.collapse_timer.setSingleShot(True)
+        self.collapse_timer.setInterval(self.COLLAPSE_DELAY)
+        self.collapse_timer.timeout.connect(self.collapse)
+        settings_events.language_changed.connect(self.update_tooltip)
+        self.update_size()
+        self.update_tooltip()
+
+    # Geometry
+
+    def expanded_height(self):
+        return (self.ICON_SIZE + self.TRACK_LENGTH
+                + 2 * self.TRACK_PADDING)
+
+    def update_size(self):
+        height = self.expanded_height() if self.expanded else self.ICON_SIZE
+        self.setFixedSize(self.ICON_SIZE, height)
+
+    def update_position(self):
+        """Moves the control into the top right corner of the view's
+        visible area, next to the lock icon if that is there, too."""
+
+        area = self.view.viewport().geometry()
+        x = area.left() + area.width() - self.width() - self.MARGIN
+        lock = self.view.lock_button
+        corner = lock.settings.valueOrDefault('LockIcon/corner')
+        if corner == 'top_right':
+            x -= lock.width() + self.GAP
+        self.move(x, area.top() + self.MARGIN)
+
+    def track_rect(self):
+        """The part of the control the handle moves along."""
+
+        top = self.ICON_SIZE + self.TRACK_PADDING
+        return QtCore.QRectF(0, top, self.width(), self.TRACK_LENGTH)
+
+    # Values
+
+    def percent(self):
+        if self.preview_percent is not None:
+            return self.preview_percent
+        return self.view.window_opacity_percent()
+
+    def percent_to_y(self, percent):
+        track = self.track_rect()
+        span = self.MAX_PERCENT - self.MIN_PERCENT
+        ratio = (self.MAX_PERCENT - percent) / span
+        return track.top() + max(0, min(1, ratio)) * track.height()
+
+    def y_to_percent(self, y):
+        track = self.track_rect()
+        ratio = max(0, min(1, (y - track.top()) / track.height()))
+        span = self.MAX_PERCENT - self.MIN_PERCENT
+        return round(self.MAX_PERCENT - ratio * span)
+
+    def update_tooltip(self, *args, **kwargs):
+        self.setToolTip(_('Window opacity: {percent} %').format(
+            percent=self.percent()))
+
+    def on_opacity_changed(self):
+        self.update_tooltip()
+        self.update()
+
+    # Unfolding and folding
+
+    def expand(self):
+        self.collapse_timer.stop()
+        if not self.expanded:
+            self.expanded = True
+            self.update_size()
+            self.raise_()
+            self.update()
+
+    def collapse(self):
+        if self.dragging or self.underMouse():
+            return
+        if self.expanded:
+            self.expanded = False
+            self.update_size()
+            self.update()
+
+    def enterEvent(self, event):
+        self.expand()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        if not self.dragging:
+            self.collapse_timer.start()
+        super().leaveEvent(event)
+
+    # Changing the opacity
+
+    def set_from_y(self, y, save):
+        percent = self.y_to_percent(y)
+        if save:
+            self.preview_percent = None
+            self.view.set_window_opacity(percent, notify=False)
+        else:
+            self.preview_percent = percent
+            self.view.preview_window_opacity(percent)
+        self.update_tooltip()
+        self.update()
+        QtWidgets.QToolTip.showText(
+            self.mapToGlobal(QtCore.QPoint(self.width() + 4, round(y))),
+            self.toolTip(), self)
+
+    def in_slider(self, pos):
+        return self.expanded and pos.y() >= self.ICON_SIZE
+
+    def mousePressEvent(self, event):
+        if (event.button() == Qt.MouseButton.LeftButton
+                and self.in_slider(event.position())):
+            self.dragging = True
+            self.set_from_y(event.position().y(), save=False)
+            event.accept()
+            return
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self.dragging:
+            self.set_from_y(event.position().y(), save=False)
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if self.dragging and event.button() == Qt.MouseButton.LeftButton:
+            self.set_from_y(event.position().y(), save=True)
+            self.dragging = False
+            if not self.rect().contains(event.position().toPoint()):
+                self.collapse_timer.start()
+        event.accept()
+
+    def wheelEvent(self, event):
+        steps = event.angleDelta().y() / 120
+        if steps:
+            percent = self.percent() + round(steps * self.WHEEL_STEP)
+            percent = max(self.MIN_PERCENT, min(self.MAX_PERCENT, percent))
+            self.view.set_window_opacity(percent, notify=False)
+            self.on_opacity_changed()
+        event.accept()
+
+    # Drawing
+
+    def paint_icon(self, painter):
+        """A circle that is half filled, the usual opacity symbol."""
+
+        size = self.ICON_SIZE
+        circle = QtCore.QRectF(0, 0, 0.56 * size, 0.56 * size)
+        circle.moveCenter(QtCore.QPointF(size / 2, size / 2))
+        painter.setPen(QtGui.QPen(self.ICON_COLOR, 1.5))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(circle)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self.ICON_COLOR)
+        painter.drawPie(circle, 90 * 16, 180 * 16)
+
+    def paint_slider(self, painter):
+        track = self.track_rect()
+        x = track.center().x()
+        painter.setPen(QtGui.QPen(self.TRACK_COLOR, 2,
+                                  cap=Qt.PenCapStyle.RoundCap))
+        painter.drawLine(QtCore.QPointF(x, track.top()),
+                         QtCore.QPointF(x, track.bottom()))
+
+        y = self.percent_to_y(self.percent())
+        handle_width = 0.6 * self.width()
+        painter.setPen(QtGui.QPen(self.HANDLE_COLOR, 4,
+                                  cap=Qt.PenCapStyle.RoundCap))
+        painter.drawLine(QtCore.QPointF(x - handle_width / 2, y),
+                         QtCore.QPointF(x + handle_width / 2, y))
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self.BACKDROP_COLOR)
+        radius = 0.2 * self.ICON_SIZE
+        painter.drawRoundedRect(QtCore.QRectF(self.rect()), radius, radius)
+        self.paint_icon(painter)
+        if self.expanded:
+            self.paint_slider(painter)
