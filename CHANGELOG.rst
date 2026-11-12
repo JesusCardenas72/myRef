@@ -1,3 +1,17 @@
+0.8.0 (2026-11-11)
+==================
+
+Added
+-----
+
+* Draw mode (Insert -> Drawing, Ctrl + Shift + D) with pen, line, polyline,
+  arrow, rectangle, ellipse and eraser tools. Hold Shift for 45 degree
+  lines and squares or circles. Line width, color, transparency and
+  dashed or dotted styles. Each stroke is one undo step.
+* Polyline tool (N): each click fixes a vertex and starts the next segment
+  from there. Double click, Esc or Enter to finish.
+* Vector icons and larger buttons in the draw toolbar.
+
 0.7.0 (2026-11-11)
 ==================
 

@@ -17,9 +17,9 @@
 
 A shape is a JSON-friendly dict::
 
-    {'type': 'pen' | 'line' | 'arrow' | 'rect' | 'ellipse',
-     'points': [[x, y], ...],  # all points for 'pen', start and end
-                               # for the other types
+    {'type': 'pen' | 'line' | 'polyline' | 'arrow' | 'rect' | 'ellipse',
+     'points': [[x, y], ...],  # all points for 'pen' and 'polyline',
+                               # start and end for the other types
      'color': '#aarrggbb',
      'width': 3.0,
      'style': 'solid' | 'dashed' | 'dotted'}
@@ -34,8 +34,8 @@ from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import Qt
 
 
-TOOLS = ('pen', 'line', 'arrow', 'rect', 'ellipse', 'eraser')
-SHAPE_TYPES = ('pen', 'line', 'arrow', 'rect', 'ellipse')
+TOOLS = ('pen', 'line', 'polyline', 'arrow', 'rect', 'ellipse', 'eraser')
+SHAPE_TYPES = ('pen', 'line', 'polyline', 'arrow', 'rect', 'ellipse')
 STYLES = {
     'solid': Qt.PenStyle.SolidLine,
     'dashed': Qt.PenStyle.DashLine,
@@ -78,7 +78,7 @@ def constrain(typ, start, end):
     ellipses to squares and circles."""
 
     delta = end - start
-    if typ in ('line', 'arrow'):
+    if typ in ('line', 'arrow', 'polyline'):
         length = math.hypot(delta.x(), delta.y())
         angle = math.atan2(delta.y(), delta.x())
         angle = round(angle / (math.pi / 4)) * (math.pi / 4)
@@ -163,6 +163,14 @@ def shape_path(shape):
                 mid = (points[i] + points[i + 1]) / 2
                 path.quadTo(points[i], mid)
             path.lineTo(points[-1])
+        return path
+    if typ == 'polyline':
+        # Straight segments between the clicked vertices
+        path.moveTo(points[0])
+        if len(points) == 1:
+            path.lineTo(points[0] + QtCore.QPointF(0.01, 0))
+        for point in points[1:]:
+            path.lineTo(point)
         return path
     start = points[0]
     end = points[-1]

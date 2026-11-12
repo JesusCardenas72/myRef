@@ -15,7 +15,7 @@
 
 APPNAME = 'myRef'
 APPNAME_FULL = f'{APPNAME} Reference Image Viewer'
-VERSION = '0.7.0'
+VERSION = '0.8.0'
 WEBSITE = 'https://github.com/rbreu/beeref'
 COPYRIGHT = 'Copyright © 2021-2024 Rebecca Breu'
 

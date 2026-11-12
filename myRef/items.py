@@ -1390,8 +1390,10 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
     PADDING = 10
     #: Height of the title band relative to the title's font size
     TITLE_LINE_HEIGHT = 1.4
-    #: Size of the settings icon (gear) in scene units
-    GEAR_SIZE = 20
+    #: Size of the settings icon (gear) on the screen
+    GEAR_PIXELS = 24
+    #: Size of a new group's title on the screen
+    TITLE_PIXELS = 20
     #: Size of the title's resize handles on the screen
     HANDLE_PIXELS = 9
 
@@ -1504,8 +1506,8 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         """Side length of the settings icon in the corner."""
 
         rect = self._rect
-        return max(0, min(self.GEAR_SIZE, rect.width() / 4,
-                          rect.height() / 4))
+        size = self.GEAR_PIXELS / self.screen_scale()
+        return max(0, min(size, rect.width() / 4, rect.height() / 4))
 
     def gear_rect(self):
         """Where the settings icon is, in item coordinates (bottom
@@ -1568,7 +1570,7 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         height = self.title_height()
         rect = self._rect
         # The gear takes the end of the bottom and right title lines
-        gear = self.GEAR_SIZE + 4
+        gear = self.gear_size() + 4
         transform = QtGui.QTransform()
         if side in ('top', 'bottom'):
             frame = QtCore.QRectF(
@@ -1637,18 +1639,22 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         rect = self.title_text_rect()
         return rect.adjusted(-3, -3, 3, 3).contains(pos)
 
-    def handle_size(self):
-        """Side of the title's handles in scene units (they have a
-        fixed size on the screen)."""
+    def screen_scale(self):
+        """How many screen pixels one unit of the item takes."""
 
-        scale = 1
         scene = self.scene()
         if scene and scene.views():
             transform = self.deviceTransform(
                 scene.views()[0].viewportTransform())
-            scale = max(math.hypot(transform.m11(), transform.m12()),
-                        0.0001)
-        return self.HANDLE_PIXELS / scale
+            return max(math.hypot(transform.m11(), transform.m12()),
+                       0.0001)
+        return 1
+
+    def handle_size(self):
+        """Side of the title's handles in scene units (they have a
+        fixed size on the screen)."""
+
+        return self.HANDLE_PIXELS / self.screen_scale()
 
     def title_handle_rects(self):
         """The handles at the corners of the title: {corner: rect}, in
@@ -1783,10 +1789,11 @@ class BeeGroupItem(BeeItemMixin, QtWidgets.QGraphicsItem):
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
         painter.translate(rect.center())
         painter.scale(rect.width() / 2, rect.height() / 2)
-        pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 90))
+        pen = QtGui.QPen(QtGui.QColor(0, 0, 0, 170))
         pen.setCosmetic(True)
+        pen.setWidthF(1.5)
         painter.setPen(pen)
-        painter.setBrush(QtGui.QColor(255, 255, 255, 110))
+        painter.setBrush(QtGui.QColor(255, 255, 255, 200))
         painter.drawPath(gear_path())
         painter.restore()
 

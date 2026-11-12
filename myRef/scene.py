@@ -429,9 +429,26 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
         # Items can only be grouped if they share the same parent
         parent = items[0].parentItem()
         grouped = [item for item in items if item.parentItem() is parent]
-        self.undo_stack.push(
-            commands.GroupItems(self, grouped, BeeGroupItem()))
+        group = BeeGroupItem()
+        group.style['title_size'] = self.readable_title_size(parent)
+        self.undo_stack.push(commands.GroupItems(self, grouped, group))
         return len(items) - len(grouped)
+
+    def readable_title_size(self, parent=None):
+        """A title size for a new group (in the given parent) that is
+        easy to read at the current zoom."""
+
+        scale = 1
+        if self.views():
+            transform = self.views()[0].transform()
+            scale = math.hypot(transform.m11(), transform.m12())
+        if parent is not None:
+            scale *= hierarchy.decompose_transform(
+                parent.sceneTransform())[1]
+        size = BeeGroupItem.TITLE_PIXELS / max(scale, 0.0001)
+        return group_style.clean_value(
+            'title_size',
+            max(round(size), group_style.DEFAULTS['title_size']))
 
     def target_groups(self):
         """The groups that group actions (style, title...) apply to.
@@ -523,13 +540,20 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             self.select_items(groups)
 
     def ungroup_selection(self):
-        """Dissolve the selected groups."""
+        """Dissolve the selected groups.
+
+        If no group is selected, the selected items inside a group are
+        taken out of it instead: they go one level up, into the group
+        that contains their group (or the top level).
+        """
 
         self.cancel_active_modes()
         groups = [item for item in self.selected_top_items()
                   if isinstance(item, BeeGroupItem)]
         if groups:
             self.undo_stack.push(commands.UngroupItems(self, groups))
+        else:
+            self.remove_selection_from_group()
 
     def parent_selection(self):
         """Make the selected items children of the item that has been

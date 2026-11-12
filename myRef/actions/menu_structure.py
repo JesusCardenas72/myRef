@@ -222,6 +222,7 @@ menu_structure = [
                 'items': [
                     'draw_tool_pen',
                     'draw_tool_line',
+                    'draw_tool_polyline',
                     'draw_tool_arrow',
                     'draw_tool_rect',
                     'draw_tool_ellipse',

@@ -1033,6 +1033,9 @@ class BeeGraphicsView(MainControlsMixin,
     def on_action_draw_tool_line(self):
         self.set_draw_tool('line')
 
+    def on_action_draw_tool_polyline(self):
+        self.set_draw_tool('polyline')
+
     def on_action_draw_tool_arrow(self):
         self.set_draw_tool('arrow')
 
@@ -1851,6 +1854,9 @@ class BeeGraphicsView(MainControlsMixin,
             # Treat as a normal click so that quick strokes don't get
             # lost and the scene doesn't start editing items
             self.mousePressEvent(event)
+            if self.draw_session.tool == 'polyline':
+                # Double click ends the polyline
+                self.draw_session.finish_polyline()
             return
         super().mouseDoubleClickEvent(event)
 
@@ -1917,6 +1923,10 @@ class BeeGraphicsView(MainControlsMixin,
             self.draw_session.release(
                 self.mapToScene(event.position().toPoint()),
                 event.modifiers())
+            event.accept()
+            return
+        if self.draw_session:
+            # E.g. the release after a double click that ended a polyline
             event.accept()
             return
         if self.mouseReleaseEventMainControls(event):
